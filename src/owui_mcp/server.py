@@ -125,7 +125,11 @@ ToolHandler = tuple[Any, dict[str, Any]]  # (bound_method, type_hints)
 
 
 def _discover_tools(client: OpenWebUI) -> tuple[list[Tool], dict[str, ToolHandler]]:
-    """Walk every ``ResourceBase`` router on *client* and register tools."""
+    """Walk every ``ResourceBase`` router on *client* and register tools.
+
+    Individual methods that fail introspection are skipped with a warning
+    so that one bad type-hint does not prevent the entire server from starting.
+    """
     tools: list[Tool] = []
     handlers: dict[str, ToolHandler] = {}
 
@@ -144,41 +148,48 @@ def _discover_tools(client: OpenWebUI) -> tuple[list[Tool], dict[str, ToolHandle
                 continue
 
             tool_name = f"{router_name}__{method_name}"
-            description = inspect.getdoc(method) or f"{router_name}.{method_name}"
 
-            sig = inspect.signature(method)
-            hints = _get_type_hints_safe(method)
+            try:
+                description = inspect.getdoc(method) or f"{router_name}.{method_name}"
 
-            properties: dict[str, Any] = {}
-            required: list[str] = []
-            all_defs: dict[str, Any] = {}
+                sig = inspect.signature(method)
+                hints = _get_type_hints_safe(method)
 
-            for param_name, param in sig.parameters.items():
-                if param_name == "self":
-                    continue
+                properties: dict[str, Any] = {}
+                required: list[str] = []
+                all_defs: dict[str, Any] = {}
 
-                param_type = hints.get(param_name, str)
-                prop_schema, prop_defs = _build_type_schema(param_type)
-                all_defs.update(prop_defs)
-                properties[param_name] = prop_schema
+                for param_name, param in sig.parameters.items():
+                    if param_name == "self":
+                        continue
 
-                # Required only when no default AND not Optional
-                if param.default is inspect.Parameter.empty and not _is_optional(param_type):
-                    required.append(param_name)
+                    param_type = hints.get(param_name, str)
+                    prop_schema, prop_defs = _build_type_schema(param_type)
+                    all_defs.update(prop_defs)
+                    properties[param_name] = prop_schema
 
-            input_schema: dict[str, Any] = {
-                "type": "object",
-                "properties": properties,
-            }
-            if required:
-                input_schema["required"] = required
-            if all_defs:
-                input_schema["$defs"] = all_defs
+                    # Required only when no default AND not Optional
+                    if param.default is inspect.Parameter.empty and not _is_optional(param_type):
+                        required.append(param_name)
 
-            tools.append(
-                Tool(name=tool_name, description=description, inputSchema=input_schema)
-            )
-            handlers[tool_name] = (method, hints)
+                input_schema: dict[str, Any] = {
+                    "type": "object",
+                    "properties": properties,
+                }
+                if required:
+                    input_schema["required"] = required
+                if all_defs:
+                    input_schema["$defs"] = all_defs
+
+                tools.append(
+                    Tool(name=tool_name, description=description, inputSchema=input_schema)
+                )
+                handlers[tool_name] = (method, hints)
+
+            except Exception:
+                logger.warning(
+                    "Skipping tool %s — introspection failed", tool_name, exc_info=True
+                )
 
     return tools, handlers
 
@@ -248,11 +259,20 @@ def create_server() -> Server:
     api_url = os.environ.get("OWUI_API_URL", "http://127.0.0.1:8080/api")
     api_key = os.environ.get("OWUI_API_KEY")
 
+    logger.info("owui_mcp starting — api_url=%s", api_url)
+
     if not api_key:
         logger.warning("OWUI_API_KEY is not set — requests will be unauthenticated.")
 
-    client = OpenWebUI(api_url=api_url, api_key=api_key)
-    server = Server("owui_mcp")
+    try:
+        client = OpenWebUI(api_url=api_url, api_key=api_key)
+    except Exception:
+        logger.critical("Failed to create OpenWebUI client", exc_info=True)
+        raise
+
+    from owui_mcp import __version__
+
+    server = Server("owui_mcp", version=__version__)
 
     tools, handlers = _discover_tools(client)
     logger.info("Discovered %d tools from owui_client", len(tools))
@@ -330,7 +350,13 @@ def main() -> None:
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         stream=sys.stderr,
     )
-    asyncio.run(run_stdio())
+    try:
+        asyncio.run(run_stdio())
+    except KeyboardInterrupt:
+        pass
+    except Exception:
+        logger.critical("owui_mcp crashed", exc_info=True)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
