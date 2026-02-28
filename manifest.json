@@ -36,6 +36,8 @@
       "command": "uv",
       "args": [
         "run",
+        "--project",
+        "${__dirname}",
         "owui-mcp"
       ],
       "env": {
