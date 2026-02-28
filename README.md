@@ -83,6 +83,17 @@ python -m owui_mcp
 
 > Note: MCP stdio servers must keep **stdout** reserved for the protocol. This project logs to **stderr**.
 
+## MCP Bundle (MCPB)
+
+You can build the MCP Bundle locally using the MCPB CLI:
+
+```bash
+npx --yes @anthropic-ai/mcpb validate .
+npx --yes @anthropic-ai/mcpb pack . owui-mcp.mcpb
+```
+
+The latest bundle is also available as a GitHub Release asset — download `owui-mcp.mcpb` from the [Releases](https://github.com/adaofeliz/owui_mcp/releases) page.
+
 ## Connect to Claude Desktop (MCP)
 
 Claude Desktop reads MCP server definitions from `claude_desktop_config.json`.
@@ -155,15 +166,3 @@ pip install --upgrade owui-client
 ## License
 
 MIT
-
-
-## MCP Bundle (MCPB)
-
-You can build the MCP Bundle locally using the MCPB CLI:
-
-```bash
-npx --yes @anthropic-ai/mcpb validate .
-npx --yes @anthropic-ai/mcpb pack . owui-mcp.mcpb
-```
-
-The latest bundle is also available as a GitHub Release asset — download `owui-mcp.mcpb` from the [Releases](https://github.com/adaofeliz/owui_mcp/releases) page.
