@@ -1,0 +1,64 @@
+{
+  "manifest_version": "0.4",
+  "name": "owui-mcp",
+  "display_name": "Open WebUI MCP",
+  "version": "0.1.0",
+  "description": "MCP server exposing the Open WebUI API via owui_client.",
+  "author": {
+    "name": "adaofeliz"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/adaofeliz/owui_mcp"
+  },
+  "support": "https://github.com/adaofeliz/owui_mcp/issues",
+  "license": "MIT",
+  "keywords": [
+    "open-webui",
+    "mcp",
+    "model-context-protocol"
+  ],
+  "tools_generated": true,
+  "compatibility": {
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ],
+    "runtimes": {
+      "python": ">=3.10,<4.0"
+    }
+  },
+  "server": {
+    "type": "uv",
+    "entry_point": "src/owui_mcp/server.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": [
+        "run",
+        "owui-mcp"
+      ],
+      "env": {
+        "OWUI_API_URL": "${user_config.owui_api_url}",
+        "OWUI_API_KEY": "${user_config.owui_api_key}"
+      }
+    }
+  },
+  "user_config": {
+    "owui_api_url": {
+      "type": "string",
+      "title": "Open WebUI API URL",
+      "description": "Must include /api",
+      "default": "http://127.0.0.1:8080/api",
+      "required": true
+    },
+    "owui_api_key": {
+      "type": "string",
+      "title": "Open WebUI API Key",
+      "description": "Bearer token",
+      "default": "",
+      "required": false,
+      "sensitive": true
+    }
+  }
+}

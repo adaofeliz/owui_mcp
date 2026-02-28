@@ -1,0 +1,59 @@
+name: Release MCPB Bundle
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate MCPB
+        run: npx --yes @anthropic-ai/mcpb validate .
+
+      - name: Pack MCPB bundle
+        run: npx --yes @anthropic-ai/mcpb pack . /tmp/owui-mcp.mcpb
+
+      - name: Prepare distribution
+        run: |
+          mkdir -p dist
+          cp /tmp/owui-mcp.mcpb dist/owui-mcp.mcpb
+
+      - name: Delete existing latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release delete latest --yes || true
+
+      - name: Delete remote tag
+        run: git push origin :refs/tags/latest || true
+
+      - name: Create prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create latest dist/owui-mcp.mcpb \
+            --prerelease \
+            --title "Latest MCPB Bundle" \
+            --notes "Automated build from $GITHUB_SHA" \
+            --target $GITHUB_SHA
+
+      - name: Verify release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ASSETS=$(gh release view latest --json assets -q '.assets|map(.name)|join("\n")')
+          echo "$ASSETS" | grep -q "owui-mcp.mcpb" || (echo "Asset owui-mcp.mcpb not found" && exit 1)
