@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "owui-mcp"
+version = "0.1.0"
+description = "MCP server exposing the Open WebUI API via owui_client."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+keywords = ["open-webui", "mcp", "model-context-protocol"]
+dependencies = [
+    "owui-client>=1.5.0",
+    "mcp>=1.7.0",
+]
+
+[project.scripts]
+owui-mcp = "owui_mcp.server:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/owui_mcp"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/owui_mcp"]
