@@ -12,7 +12,7 @@ license = {text = "MIT"}
 keywords = ["open-webui", "mcp", "model-context-protocol"]
 dependencies = [
     "owui-client>=1.5.0",
-    "mcp>=1.7.0",
+    "mcp>=1.7.0,<2",
 ]
 
 [project.scripts]
