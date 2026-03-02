@@ -222,12 +222,6 @@ def _discover_tools(client: OpenWebUI) -> tuple[list[Tool], dict[str, ToolHandle
                     input_schema["required"] = required
                 if all_defs:
                     input_schema["$defs"] = all_defs
-                # Signal to LLM clients that no extra arguments are accepted.
-                # This is critical for no-param tools: without this flag many
-                # LLM clients try to generate arguments and produce malformed JSON.
-                if not properties:
-                    input_schema["additionalProperties"] = False
-
                 tools.append(
                     Tool(name=tool_name, description=description, inputSchema=input_schema)
                 )
