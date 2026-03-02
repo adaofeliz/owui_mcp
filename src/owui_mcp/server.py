@@ -14,6 +14,7 @@ import inspect
 import json
 import logging
 import os
+import re
 import sys
 import types
 from typing import Any, Union, get_args, get_origin
@@ -116,6 +117,41 @@ def _is_optional(param_type: Any) -> bool:
         return type(None) in get_args(param_type)
     return False
 
+def _parse_docstring_args(docstring: str) -> dict[str, str]:
+    """Extract per-parameter descriptions from the ``Args:`` section of a docstring.
+
+    Returns a mapping of ``{param_name: description}`` for use as ``"description"``
+    fields in JSON-Schema property objects.
+    """
+    if not docstring:
+        return {}
+
+    # Locate the Args: block (stops at the next section heading)
+    args_match = re.search(
+        r"Args:\s*\n(.*?)(?=\n\s*(?:Returns|Raises|Note|Example|Yields):\s*\n|\Z)",
+        docstring,
+        re.DOTALL,
+    )
+    if not args_match:
+        return {}
+
+    args_section = args_match.group(1)
+    param_descs: dict[str, str] = {}
+
+    # Each entry starts with exactly 4-space indent: "    name: description"
+    # Continuation lines are indented 8+ spaces.
+    pattern = re.compile(
+        r"^    (\w+):\s*(.+?)(?=\n    \w+:|\Z)",
+        re.MULTILINE | re.DOTALL,
+    )
+    for match in pattern.finditer(args_section):
+        name = match.group(1)
+        raw = match.group(2)
+        # Collapse multi-line continuation into a single string
+        desc = " ".join(raw.split())
+        param_descs[name] = desc
+
+    return param_descs
 
 # ---------------------------------------------------------------------------
 # Auto-discovery
@@ -151,6 +187,7 @@ def _discover_tools(client: OpenWebUI) -> tuple[list[Tool], dict[str, ToolHandle
 
             try:
                 description = inspect.getdoc(method) or f"{router_name}.{method_name}"
+                param_descriptions = _parse_docstring_args(description)
 
                 sig = inspect.signature(method)
                 hints = _get_type_hints_safe(method)
@@ -166,6 +203,11 @@ def _discover_tools(client: OpenWebUI) -> tuple[list[Tool], dict[str, ToolHandle
                     param_type = hints.get(param_name, str)
                     prop_schema, prop_defs = _build_type_schema(param_type)
                     all_defs.update(prop_defs)
+
+                    # Attach per-parameter description extracted from docstring Args:
+                    if param_name in param_descriptions:
+                        prop_schema["description"] = param_descriptions[param_name]
+
                     properties[param_name] = prop_schema
 
                     # Required only when no default AND not Optional
@@ -180,6 +222,11 @@ def _discover_tools(client: OpenWebUI) -> tuple[list[Tool], dict[str, ToolHandle
                     input_schema["required"] = required
                 if all_defs:
                     input_schema["$defs"] = all_defs
+                # Signal to LLM clients that no extra arguments are accepted.
+                # This is critical for no-param tools: without this flag many
+                # LLM clients try to generate arguments and produce malformed JSON.
+                if not properties:
+                    input_schema["additionalProperties"] = False
 
                 tools.append(
                     Tool(name=tool_name, description=description, inputSchema=input_schema)
