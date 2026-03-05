@@ -18,8 +18,9 @@ At startup, `owui_mcp`:
 
 1. Creates an `owui_client.OpenWebUI` instance using env vars (`OWUI_API_URL`, `OWUI_API_KEY`)
 2. Introspects the client's routers (all `ResourceBase` routers)
-3. Registers **every public async method** as an MCP tool
-4. Generates tool input schemas from Python type hints + Pydantic models in `owui_client`
+3. Registers **every public async method** as an MCP tool using **FastMCP**
+4. FastMCP automatically generates tool input schemas from Python type hints + Pydantic models in `owui_client`
+5. Enables **Code Mode** (a FastMCP transform), providing advanced tools for code execution and exploration within a secure sandbox (`MontySandboxProvider`)
 
 ### Tool naming
 
