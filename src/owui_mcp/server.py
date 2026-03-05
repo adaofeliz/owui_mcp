@@ -15,8 +15,8 @@ import os
 import sys
 
 from fastmcp import FastMCP
-from fastmcp.experimental.transforms.code_mode import CodeMode, Search, GetSchemas
-from fastmcp.experimental.transforms.code_mode.sandbox import MontySandboxProvider
+from fastmcp.experimental.transforms.code_mode import CodeMode, Search, GetSchemas, MontySandboxProvider
+
 
 from owui_client import OpenWebUI
 from owui_client.client_base import ResourceBase
