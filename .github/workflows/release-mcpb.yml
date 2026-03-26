@@ -3,6 +3,7 @@ name: Release MCPB Bundle
 on:
   push:
     branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
@@ -33,15 +34,29 @@ jobs:
           mkdir -p dist
           cp /tmp/owui-mcp.mcpb dist/owui-mcp.mcpb
 
+      - name: Upload to tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          # Create release if it doesn't exist, then upload asset
+          gh release view "$TAG" &>/dev/null || \
+            gh release create "$TAG" --title "$TAG" --notes "Release $TAG" --target "$GITHUB_SHA"
+          gh release upload "$TAG" dist/owui-mcp.mcpb --clobber
+
       - name: Delete existing latest release
+        if: "!startsWith(github.ref, 'refs/tags/v')"
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release delete latest --yes || true
 
       - name: Delete remote tag
+        if: "!startsWith(github.ref, 'refs/tags/v')"
         run: git push origin :refs/tags/latest || true
 
       - name: Create prerelease
+        if: "!startsWith(github.ref, 'refs/tags/v')"
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -55,5 +70,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          ASSETS=$(gh release view latest --json assets -q '.assets|map(.name)|join("\n")')
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            ASSETS=$(gh release view "$TAG" --json assets -q '.assets|map(.name)|join("\n")')
+          else
+            ASSETS=$(gh release view latest --json assets -q '.assets|map(.name)|join("\n")')
+          fi
           echo "$ASSETS" | grep -q "owui-mcp.mcpb" || (echo "Asset owui-mcp.mcpb not found" && exit 1)
