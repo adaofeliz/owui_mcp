@@ -1,0 +1,661 @@
+import datetime
+from typing import Optional
+from pydantic import BaseModel, ConfigDict
+
+
+class UpdateProfileForm(BaseModel):
+    """
+    Form for updating a user's profile information.
+
+    Note: This form is primarily used by the Auths router for profile updates,
+    not by the Users router.
+    """
+
+    profile_image_url: str
+    """The URL of the profile image."""
+
+    name: str
+    """The full name of the user."""
+
+    bio: Optional[str] = None
+    """A brief biography or description of the user."""
+
+    gender: Optional[str] = None
+    """The user's gender."""
+
+    date_of_birth: Optional[datetime.date] = None
+    """The user's date of birth."""
+
+
+class UserSettings(BaseModel):
+    """
+    User settings configuration.
+
+    This model stores various user preferences, primarily related to the UI.
+    It allows extra fields to accommodate future settings without strict schema changes.
+    """
+
+    ui: Optional[dict] = {}
+    """Dictionary containing UI-specific settings and preferences.
+
+    Dict Fields:
+        - `pinnedModels` (list[str], optional): List of model IDs pinned to the sidebar
+        - `toolServers` (list[dict], optional): List of tool server configurations
+        - `detectArtifacts` (bool, optional): Enable artifact detection in responses
+        - `showUpdateToast` (bool, optional): Show update notification toasts
+        - `showChangelog` (bool, optional): Show changelog notifications
+        - `showEmojiInCall` (bool, optional): Show emoji during call interactions
+        - `voiceInterruption` (bool, optional): Allow voice interruption during calls
+        - `collapseCodeBlocks` (bool, optional): Collapse code blocks by default
+        - `expandDetails` (bool, optional): Expand detail sections by default
+        - `notificationSound` (bool, optional): Enable notification sounds
+        - `notificationSoundAlways` (bool, optional): Always play notification sounds
+        - `stylizedPdfExport` (bool, optional): Use stylized PDF export format
+        - `notifications` (dict, optional): Notification configuration
+        - `imageCompression` (bool, optional): Enable image compression
+        - `imageCompressionSize` (any, optional): Image compression size settings
+        - `textScale` (number, optional): Text scaling factor
+        - `widescreenMode` (null, optional): Widescreen mode setting
+        - `largeTextAsFile` (bool, optional): Treat large text as file attachments
+        - `promptAutocomplete` (bool, optional): Enable prompt autocomplete
+        - `hapticFeedback` (bool, optional): Enable haptic feedback
+        - `responseAutoCopy` (any, optional): Auto-copy response settings
+        - `richTextInput` (bool, optional): Enable rich text input
+        - `params` (any, optional): Additional UI parameters
+        - `userLocation` (any, optional): User location settings
+        - `webSearch` (any, optional): Web search configuration
+        - `memory` (bool, optional): Enable memory features
+        - `autoTags` (bool, optional): Enable automatic tagging
+        - `autoFollowUps` (bool, optional): Enable automatic follow-ups
+        - `backgroundImageUrl` (null, optional): Background image URL
+        - `landingPageMode` (str, optional): Landing page display mode
+        - `iframeSandboxAllowForms` (bool, optional): Allow forms in iframe sandbox
+        - `iframeSandboxAllowSameOrigin` (bool, optional): Allow same-origin in iframe sandbox
+        - `scrollOnBranchChange` (bool, optional): Scroll on branch change
+        - `directConnections` (null, optional): Direct connections setting
+        - `chatBubble` (bool, optional): Show chat bubble interface
+        - `copyFormatted` (bool, optional): Copy formatted text
+        - `models` (list[str], optional): List of available model IDs
+        - `conversationMode` (bool, optional): Enable conversation mode
+        - `speechAutoSend` (bool, optional): Auto-send speech input
+        - `responseAutoPlayback` (bool, optional): Auto-playback responses
+        - `audio` (AudioSettings, optional): Audio settings configuration
+        - `showUsername` (bool, optional): Show username in UI
+        - `notificationEnabled` (bool, optional): Enable notifications
+        - `highContrastMode` (bool, optional): Enable high contrast mode
+        - `title` (TitleSettings, optional): Title settings configuration
+        - `showChatTitleInTab` (bool, optional): Show chat title in browser tab
+        - `splitLargeDeltas` (bool, optional): Split large delta updates
+        - `chatDirection` (str, optional): Chat direction ('LTR', 'RTL', 'auto')
+        - `ctrlEnterToSend` (bool, optional): Use Ctrl+Enter to send messages
+        - `system` (str, optional): System configuration
+        - `seed` (number, optional): Random seed value
+        - `temperature` (str, optional): Temperature setting
+        - `repeat_penalty` (str, optional): Repeat penalty value
+        - `top_k` (str, optional): Top-k sampling value
+        - `top_p` (str, optional): Top-p sampling value
+        - `num_ctx` (str, optional): Context window size
+        - `num_batch` (str, optional): Batch size
+        - `num_keep` (str, optional): Number of tokens to keep
+        - `options` (ModelOptions, optional): Model-specific options
+
+    The `notifications` field contains:
+        - `webhook_url` (str, optional): Webhook URL for notifications
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+
+class UserModel(BaseModel):
+    """
+    Represents a user in the system.
+
+    This is the main user model containing profile information, status, settings,
+    and system metadata.
+    """
+
+    id: str
+    """Unique identifier for the user."""
+
+    name: str
+    """The user's full name."""
+
+    email: str
+    """The user's email address."""
+
+    username: Optional[str] = None
+    """The user's username (optional)."""
+
+    role: str = "pending"
+    """The user's role. Common values: 'admin', 'user', 'pending'."""
+
+    profile_image_url: Optional[str] = None
+    """URL to the user's profile image."""
+
+    profile_banner_image_url: Optional[str] = None
+    """URL to the user's profile banner image."""
+
+    bio: Optional[str] = None
+    """User's biography."""
+
+    gender: Optional[str] = None
+    """User's gender."""
+
+    date_of_birth: Optional[datetime.date] = None
+    """User's date of birth."""
+
+    timezone: Optional[str] = None
+    """User's timezone."""
+
+    presence_state: Optional[str] = None
+    """Current presence state (e.g., 'online', 'idle')."""
+
+    status_emoji: Optional[str] = None
+    """Emoji representing the user's current status."""
+
+    status_message: Optional[str] = None
+    """Text message representing the user's current status."""
+
+    status_expires_at: Optional[int] = None
+    """Timestamp when the status message expires."""
+
+    info: Optional[dict] = None
+    """Additional user information dictionary.
+
+    Dict Fields:
+        - `location` (str, optional): User's location information, used for geolocation features and template variable replacement (e.g., {{USER_LOCATION}} in prompts)
+        - Additional arbitrary key-value pairs may be stored as needed. This field is a flexible JSON storage that can contain any user-specific metadata.
+    """
+
+    settings: Optional[UserSettings] = None
+    """User-specific settings."""
+
+    api_key: Optional[str] = None
+    """User's API key (if generated)."""
+
+    oauth: Optional[dict] = None
+    """OAuth provider data.
+
+    Dict Fields:
+        - `google` (dict, optional): Google OAuth provider data
+        - `github` (dict, optional): GitHub OAuth provider data
+        - `microsoft` (dict, optional): Microsoft OAuth provider data
+        - `oidc` (dict, optional): OpenID Connect OAuth provider data
+        - `feishu` (dict, optional): Feishu OAuth provider data
+
+    Each provider dictionary contains:
+        - `sub` (str, required): Subject identifier from the OAuth provider
+    """
+
+    scim: Optional[dict] = None
+    """SCIM provider data for external identity management.
+
+    Dict Fields:
+        - `microsoft` (dict, optional): Microsoft SCIM provider data
+        - `okta` (dict, optional): Okta SCIM provider data
+
+    Each provider dictionary contains:
+        - `external_id` (str, required): External identifier from the SCIM provider
+    """
+
+    oauth_sub: Optional[str] = None
+    """OAuth subject identifier."""
+
+    last_active_at: int  # timestamp in epoch
+    """Timestamp of the last user activity (Unix epoch)."""
+
+    updated_at: int  # timestamp in epoch
+    """Timestamp when the user was last updated (Unix epoch)."""
+
+    created_at: int  # timestamp in epoch
+    """Timestamp when the user was created (Unix epoch)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserGroupIdsModel(UserModel):
+    """
+    User model with associated group IDs.
+    """
+
+    group_ids: list[str] = []
+    """List of group IDs that the user belongs to."""
+
+
+class UserGroupIdsListResponse(BaseModel):
+    """
+    Response model for listing users with their group IDs.
+    """
+
+    users: list[UserGroupIdsModel]
+    """List of users with group IDs."""
+
+    total: int
+    """Total number of users matching the query."""
+
+
+class UserModelResponse(UserModel):
+    """
+    User model response that allows extra fields.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+
+class UserListResponse(BaseModel):
+    """
+    Response model for listing users.
+    """
+
+    users: list[UserModelResponse]
+    """List of users."""
+
+    total: int
+    """Total number of users matching the query."""
+
+
+class UserStatus(BaseModel):
+    """
+    User status information.
+    """
+
+    status_emoji: Optional[str] = None
+    """Emoji status."""
+
+    status_message: Optional[str] = None
+    """Text status message."""
+
+    status_expires_at: Optional[int] = None
+    """Timestamp when the status expires (Unix epoch)."""
+
+
+class UserInfoResponse(UserStatus):
+    """
+    Abbreviated user information including status.
+    """
+
+    id: str
+    """User ID."""
+
+    name: str
+    """User name."""
+
+    email: str
+    """User email."""
+
+    role: str
+    """User role."""
+
+    bio: Optional[str] = None
+    """User's biography."""
+
+    groups: Optional[list] = []
+    """List of groups the user belongs to."""
+
+    is_active: bool = False
+    """Whether the user is currently active (based on recent activity)."""
+
+
+class UserInfoListResponse(BaseModel):
+    """
+    Response model for listing abbreviated user info.
+    """
+
+    users: list[UserInfoResponse]
+    """List of user info objects."""
+
+    total: int
+    """Total count of users."""
+
+
+class ActiveUsersResponse(BaseModel):
+    """
+    Response model for listing active user IDs.
+    """
+
+    user_ids: list[str]
+    """List of active user IDs."""
+
+
+class UserActiveResponse(UserStatus):
+    """
+    User response including active status.
+    """
+
+    name: str
+    """User name."""
+
+    profile_image_url: Optional[str] = None
+    """URL to profile image."""
+
+    is_active: bool
+    """Whether the user is currently active (based on recent activity)."""
+
+    groups: Optional[list] = []
+    """List of groups the user belongs to."""
+
+    model_config = ConfigDict(extra="allow")
+
+
+class UserIdNameResponse(BaseModel):
+    """
+    Minimal user response with ID and name.
+    """
+
+    id: str
+    """User ID."""
+
+    name: str
+    """User name."""
+
+
+class UserIdNameStatusResponse(UserStatus):
+    """
+    User response with ID, name, and active status.
+    """
+
+    id: str
+    """User ID."""
+
+    name: str
+    """User name."""
+
+    is_active: Optional[bool] = None
+    """Whether the user is currently active."""
+
+
+class UserIdNameListResponse(BaseModel):
+    """
+    Response model for listing users with ID and name.
+    """
+
+    users: list[UserIdNameResponse]
+    """List of user objects (ID and name)."""
+
+    total: int
+    """Total number of users."""
+
+
+class UserNameResponse(BaseModel):
+    """
+    User response with ID, name, and role.
+    """
+
+    id: str
+    """User ID."""
+
+    name: str
+    """User name."""
+
+    role: str
+    """User role."""
+
+
+class UserProfileImageResponse(UserNameResponse):
+    """
+    User response with profile image URL.
+    """
+
+    email: str
+    """User email."""
+
+    profile_image_url: str
+    """URL to the user's profile image."""
+
+
+class WorkspacePermissions(BaseModel):
+    """
+    Permissions related to workspace features.
+    """
+
+    models: bool = False
+    """Access to models."""
+
+    knowledge: bool = False
+    """Access to knowledge base."""
+
+    prompts: bool = False
+    """Access to prompts."""
+
+    tools: bool = False
+    """Access to tools."""
+
+    skills: bool = False
+    """Access to skills."""
+
+    models_import: bool = False
+    """Permission to import models."""
+
+    models_export: bool = False
+    """Permission to export models."""
+
+    prompts_import: bool = False
+    """Permission to import prompts."""
+
+    prompts_export: bool = False
+    """Permission to export prompts."""
+
+    tools_import: bool = False
+    """Permission to import tools."""
+
+    tools_export: bool = False
+    """Permission to export tools."""
+
+
+class SharingPermissions(BaseModel):
+    """
+    Permissions related to sharing features.
+    """
+
+    models: bool = False
+    """Can share models."""
+
+    public_models: bool = False
+    """Can share models publicly."""
+
+    knowledge: bool = False
+    """Can share knowledge."""
+
+    public_knowledge: bool = False
+    """Can share knowledge publicly."""
+
+    prompts: bool = False
+    """Can share prompts."""
+
+    public_prompts: bool = False
+    """Can share prompts publicly."""
+
+    tools: bool = False
+    """Can share tools."""
+
+    public_tools: bool = True
+    """Can share tools publicly (default True)."""
+
+    skills: bool = False
+    """Can share skills."""
+
+    public_skills: bool = False
+    """Can share skills publicly."""
+
+    notes: bool = False
+    """Can share notes."""
+
+    public_notes: bool = True
+    """Can share notes publicly (default True)."""
+
+
+class ChatPermissions(BaseModel):
+    """
+    Permissions related to chat functionality.
+    """
+
+    controls: bool = True
+    """Access to chat controls."""
+
+    valves: bool = True
+    """Access to valves."""
+
+    system_prompt: bool = True
+    """Ability to edit system prompt."""
+
+    params: bool = True
+    """Ability to edit chat parameters."""
+
+    file_upload: bool = True
+    """Permission to upload files."""
+
+    web_upload: bool = True
+    """Permission to upload content from the web."""
+
+    delete: bool = True
+    """Permission to delete chats."""
+
+    delete_message: bool = True
+    """Permission to delete individual messages."""
+
+    continue_response: bool = True
+    """Permission to use 'continue' for responses."""
+
+    regenerate_response: bool = True
+    """Permission to regenerate responses."""
+
+    rate_response: bool = True
+    """Permission to rate responses."""
+
+    edit: bool = True
+    """Permission to edit messages."""
+
+    share: bool = True
+    """Permission to share chats."""
+
+    export: bool = True
+    """Permission to export chats."""
+
+    stt: bool = True
+    """Access to Speech-to-Text."""
+
+    tts: bool = True
+    """Access to Text-to-Speech."""
+
+    call: bool = True
+    """Access to call feature."""
+
+    multiple_models: bool = True
+    """Permission to use multiple models."""
+
+    temporary: bool = True
+    """Permission to use temporary chats."""
+
+    temporary_enforced: bool = False
+    """Whether temporary chat is enforced."""
+
+
+class FeaturesPermissions(BaseModel):
+    """
+    Permissions related to general features.
+    """
+
+    api_keys: bool = False
+    """Access to API keys."""
+
+    direct_tool_servers: bool = False
+    """Access to direct tool servers."""
+
+    web_search: bool = True
+    """Access to web search."""
+
+    image_generation: bool = True
+    """Access to image generation."""
+
+    code_interpreter: bool = True
+    """Access to code interpreter."""
+
+    notes: bool = True
+    """Access to notes."""
+
+    channels: bool = True
+    """Access to channels."""
+
+    folders: bool = True
+    """Access to folders."""
+
+    memories: bool = True
+    """Access to memories."""
+
+    automations: bool = False
+    """Access to automations."""
+
+
+class SettingsPermissions(BaseModel):
+    """
+    Permissions related to settings.
+    """
+
+    interface: bool = True
+    """Access to interface settings."""
+
+
+class AccessGrantsPermissions(BaseModel):
+    """
+    Permissions related to access grants.
+    """
+
+    allow_users: bool = True
+    """Whether to allow users to grant access to others."""
+
+
+class UserPermissions(BaseModel):
+    """
+    Comprehensive user permissions.
+
+    This model represents the structure of permissions returned by the system.
+    It is used for default permissions configuration and user-specific permission checks.
+    """
+
+    workspace: WorkspacePermissions
+    """Workspace-related permissions."""
+
+    sharing: SharingPermissions
+    """Sharing-related permissions."""
+
+    chat: ChatPermissions
+    """Chat-related permissions."""
+
+    features: FeaturesPermissions
+    """Feature-related permissions."""
+
+    settings: SettingsPermissions
+    """Settings-related permissions."""
+
+    access_grants: AccessGrantsPermissions
+    """Access grants related permissions."""
+
+
+class UserResponse(UserNameResponse):
+    """
+    User response with ID, name, role, and email.
+    """
+
+    email: str
+    """User email."""
+
+
+class UserUpdateForm(BaseModel):
+    """
+    Form for updating a user.
+    """
+
+    role: str
+    """User role. Can be used to promote/demote users."""
+
+    name: str
+    """User name."""
+
+    email: str
+    """User email."""
+
+    profile_image_url: str
+    """Profile image URL."""
+
+    password: Optional[str] = None
+    """New password (optional). If provided, the user's password will be updated."""

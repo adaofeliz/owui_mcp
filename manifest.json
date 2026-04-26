@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "owui-mcp",
   "display_name": "Open WebUI MCP",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "MCP server exposing the Open WebUI API via owui_client.",
   "author": {
     "name": "adaofeliz"

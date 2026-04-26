@@ -4,6 +4,8 @@
 
 This repo is intentionally a thin wrapper: **the source of truth stays in `owui_client`**. When `owui_client` adds/changes endpoints, `owui_mcp` picks them up automatically at startup.
 
+> **Note:** The `owui_client` fork code is vendored directly into this package (`src/owui_client/`) so no external git dependency is required at install time.
+
 ## Base project: owui_client
 
 - Fork: https://github.com/adaofeliz/owui_client (based on https://github.com/whogben/owui_client)
@@ -184,11 +186,7 @@ Use the same server definitions as the Claude examples above.
 
 ## Updating owui_client
 
-`owui_mcp` auto-discovers `owui_client` methods at startup. Updating the client library automatically adds new endpoints as MCP tools:
-
-```bash
-pip install --upgrade owui-client
-```
+`owui_mcp` auto-discovers `owui_client` methods at startup. Because the fork is vendored into this repo, updating requires bumping the vendored code in `src/owui_client/` and cutting a new release.
 
 ## License
 
