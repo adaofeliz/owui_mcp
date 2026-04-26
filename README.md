@@ -20,7 +20,7 @@ At startup, `owui_mcp`:
 2. Introspects the client's routers (all `ResourceBase` routers)
 3. Registers **every public async method** as an MCP tool using **FastMCP**
 4. FastMCP automatically generates tool input schemas from Python type hints + Pydantic models in `owui_client`
-5. Enables **Code Mode** (a FastMCP transform), providing advanced tools for code execution and exploration within a secure sandbox (`MontySandboxProvider`)
+5. Optionally enables **Code Mode** via the `--code-mode` flag, a FastMCP transform providing meta-tools for discovery and sandboxed code execution. Off by default; all tools are exposed directly without it.
 
 ### Tool naming
 
@@ -71,9 +71,15 @@ If `OWUI_API_KEY` is not set, the server will still run, but requests may fail d
 Normally, **your MCP client** (Claude Desktop / Cursor) launches the server. For local debugging you can run:
 
 ```bash
+# Default: all tools exposed directly (recommended)
 OWUI_API_URL="http://localhost:8080/api" \
 OWUI_API_KEY="sk-..." \
 owui-mcp
+
+# With Code Mode: meta-tools for discovery + sandboxed code execution
+OWUI_API_URL="http://localhost:8080/api" \
+OWUI_API_KEY="sk-..." \
+owui-mcp --code-mode
 ```
 
 Or:
@@ -93,7 +99,7 @@ npx --yes @anthropic-ai/mcpb validate .
 npx --yes @anthropic-ai/mcpb pack . owui-mcp.mcpb
 ```
 
-The latest bundle is also available as a GitHub Release asset — download `owui-mcp.mcpb` from the [Releases](https://github.com/adaofeliz/owui_mcp/releases) page.
+The latest bundle is also available as a GitHub Release asset, download `owui-mcp.mcpb` from the [Releases](https://github.com/adaofeliz/owui_mcp/releases) page.
 
 ## Connect to Claude Desktop (MCP)
 
@@ -113,6 +119,23 @@ Reference: https://modelcontextprotocol.io/docs/develop/connect-local-servers
   "mcpServers": {
     "owui": {
       "command": "owui-mcp",
+      "env": {
+        "OWUI_API_URL": "http://localhost:8080/api",
+        "OWUI_API_KEY": "sk-..."
+      }
+    }
+  }
+}
+```
+
+To enable Code Mode, add `"--code-mode"` to the `args` array:
+
+```json
+{
+  "mcpServers": {
+    "owui": {
+      "command": "owui-mcp",
+      "args": ["--code-mode"],
       "env": {
         "OWUI_API_URL": "http://localhost:8080/api",
         "OWUI_API_KEY": "sk-..."
@@ -142,6 +165,9 @@ Use the Python interpreter you want Claude Desktop to run (venv/pipx/system pyth
   }
 }
 ```
+
+To enable Code Mode, add `"--code-mode"` to the `args` array (e.g. `["-m", "owui_mcp", "--code-mode"]`).
+
 
 ### Restart required
 

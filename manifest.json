@@ -61,6 +61,13 @@
       "default": "",
       "required": false,
       "sensitive": true
+    },
+    "code_mode": {
+      "type": "boolean",
+      "title": "Enable Code Mode",
+      "description": "Enable FastMCP Code Mode. When enabled, add '--code-mode' to the server args in your MCP client config.",
+      "default": false,
+      "required": false
     }
   }
 }
