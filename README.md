@@ -1,12 +1,12 @@
 # owui_mcp
 
-`owui_mcp` is a **Model Context Protocol (MCP)** server (stdio) that exposes the **Open WebUI API** as MCP **tools**, by wrapping the Python client library **[`owui_client`](https://github.com/whogben/owui_client)**.
+`owui_mcp` is a **Model Context Protocol (MCP)** server (stdio) that exposes the **Open WebUI API** as MCP **tools**, by wrapping the Python client library **[`owui_client`](https://github.com/adaofeliz/owui_client)** (a fork of the original).
 
 This repo is intentionally a thin wrapper: **the source of truth stays in `owui_client`**. When `owui_client` adds/changes endpoints, `owui_mcp` picks them up automatically at startup.
 
 ## Base project: owui_client
 
-- GitHub: https://github.com/whogben/owui_client
+- Fork: https://github.com/adaofeliz/owui_client (based on https://github.com/whogben/owui_client)
 - PyPI: `pip install owui-client`
 - Docs: https://whogben.github.io/owui_client/
 

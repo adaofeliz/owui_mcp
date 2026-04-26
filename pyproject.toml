@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 license = {text = "MIT"}
 keywords = ["open-webui", "mcp", "model-context-protocol"]
 dependencies = [
-    "owui-client==1.6.1",
+    "owui-client @ git+https://github.com/adaofeliz/owui_client",
     "fastmcp[code-mode]>=3.1.0",
 ]
 
