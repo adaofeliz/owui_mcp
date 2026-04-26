@@ -8,7 +8,6 @@ Configuration via environment variables:
 
 from __future__ import annotations
 
-import asyncio
 import argparse
 import inspect
 import logging
