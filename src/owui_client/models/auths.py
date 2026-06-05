@@ -240,7 +240,7 @@ class AdminConfig(BaseModel):
     """Maximum number of automations allowed per user."""
 
     AUTOMATION_MIN_INTERVAL: Optional[int | str] = None
-    """Minimum interval between automation executions, in seconds."""
+    """Minimum interval (in seconds) between automation executions."""
 
     ENABLE_AUTOMATIONS: bool
     """Whether automations are enabled."""

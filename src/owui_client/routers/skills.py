@@ -1,12 +1,13 @@
 from typing import List, Optional
+
 from owui_client.client_base import ResourceBase
 from owui_client.models.skills import (
     SkillUserResponse,
-    SkillAccessResponse,
-    SkillAccessListResponse,
     SkillModel,
     SkillResponse,
     SkillForm,
+    SkillAccessResponse,
+    SkillAccessListResponse,
     SkillAccessGrantsForm,
 )
 
@@ -17,14 +18,13 @@ class SkillsClient(ResourceBase):
     """
 
     async def get_skills(self) -> List[SkillUserResponse]:
-        """
-        Get all available skills.
+        """Get all skills the authenticated user can read.
 
-        Returns skills the user has read access to, including their own
-        and those shared via access grants.
+        Admins with bypass access control see all skills. Other users see only
+        skills they own or have been granted read access to.
 
         Returns:
-            List[SkillUserResponse]: List of skills with user information.
+            List[SkillUserResponse]: List of skills with owner details.
         """
         return await self._request(
             "GET",
@@ -38,18 +38,18 @@ class SkillsClient(ResourceBase):
         view_option: Optional[str] = None,
         page: Optional[int] = 1,
     ) -> SkillAccessListResponse:
-        """
-        Get a paginated list of skills with access information.
+        """Get a paginated, searchable list of skills with access info.
 
-        Supports filtering by query string and view option.
+        Each result includes a `write_access` flag indicating whether the
+        requesting user can modify that skill.
 
         Args:
-            query: Optional search query to filter skills by name or description.
-            view_option: Optional view filter - 'created' for own skills, 'shared' for others.
-            page: Page number for pagination (1-based). Defaults to 1.
+            query: Optional search string to filter skills by name/description.
+            view_option: Optional view filter (e.g. "mine", "shared").
+            page: Page number (1-indexed). Defaults to 1.
 
         Returns:
-            `SkillAccessListResponse`: Paginated list of skills with write_access flags.
+            `SkillAccessListResponse`: Paginated skills with write access indicators.
         """
         params = {}
         if query is not None:
@@ -67,13 +67,12 @@ class SkillsClient(ResourceBase):
         )
 
     async def export_skills(self) -> List[SkillModel]:
-        """
-        Export all skills the user has read access to.
+        """Export all skills the user has read access to.
 
-        Requires admin role or 'workspace.skills' permission.
+        Requires the `workspace.skills` permission for non-admin users.
 
         Returns:
-            List[SkillModel]: List of skills with full content.
+            List[SkillModel]: Full skill models including content.
         """
         return await self._request(
             "GET",
@@ -82,34 +81,35 @@ class SkillsClient(ResourceBase):
         )
 
     async def create_new_skill(self, form_data: SkillForm) -> Optional[SkillResponse]:
-        """
-        Create a new skill.
+        """Create a new skill.
 
-        Requires admin role or 'workspace.skills' permission.
-        The skill ID will be normalized to lowercase with spaces replaced by hyphens.
+        The `id` is lowercased and spaces replaced with hyphens automatically.
+        Requires the `workspace.skills` permission for non-admin users.
 
         Args:
-            form_data: The skill data, including ID, name, and content.
+            form_data: The skill data including id, name, content, and meta.
 
         Returns:
-            Optional[SkillResponse]: The created skill metadata.
+            Optional[SkillResponse]: The created skill metadata (no content field).
         """
         return await self._request(
             "POST",
             "/v1/skills/create",
-            json=form_data.model_dump(mode="json"),
+            json=form_data.model_dump(mode="json", exclude_none=True),
             model=Optional[SkillResponse],
         )
 
     async def get_skill_by_id(self, id: str) -> Optional[SkillAccessResponse]:
-        """
-        Get a skill by its unique ID.
+        """Get a single skill by ID with access information.
+
+        Returns the skill details along with a `write_access` flag indicating
+        whether the requesting user can modify it.
 
         Args:
             id: The skill ID.
 
         Returns:
-            Optional[SkillAccessResponse]: The skill details with access information.
+            Optional[SkillAccessResponse]: The skill with write access indicator.
         """
         return await self._request(
             "GET",
@@ -120,55 +120,58 @@ class SkillsClient(ResourceBase):
     async def update_skill_by_id(
         self, id: str, form_data: SkillForm
     ) -> Optional[SkillModel]:
-        """
-        Update a skill by ID.
+        """Update a skill by ID.
+
+        Requires owner, write access, or admin role. Public access grants in the
+        form data are filtered based on the `sharing.public_skills` permission.
 
         Args:
             id: The skill ID.
             form_data: The updated skill data.
 
         Returns:
-            Optional[SkillModel]: The updated skill details.
+            Optional[SkillModel]: The updated skill.
         """
         return await self._request(
             "POST",
             f"/v1/skills/id/{id}/update",
-            json=form_data.model_dump(mode="json"),
+            json=form_data.model_dump(mode="json", exclude_none=True),
             model=Optional[SkillModel],
         )
 
     async def update_skill_access_by_id(
         self, id: str, form_data: SkillAccessGrantsForm
     ) -> Optional[SkillModel]:
-        """
-        Update access grants for a skill.
+        """Update access grants for a skill.
 
-        Sets the access grants for a skill, controlling which users and groups
-        can read or write the skill. Requires owner, write access, or admin role.
+        Sets the access grants controlling who can read or write the skill.
+        Requires owner, write access, or admin role. Public grants are filtered
+        by the `sharing.public_skills` permission.
 
         Args:
             id: The skill ID.
             form_data: The access grants form with list of access grant dicts.
 
         Returns:
-            Optional[SkillModel]: The updated skill details.
+            Optional[SkillModel]: The updated skill.
         """
         return await self._request(
             "POST",
             f"/v1/skills/id/{id}/access/update",
-            json=form_data.model_dump(mode="json"),
+            json=form_data.model_dump(mode="json", exclude_none=True),
             model=Optional[SkillModel],
         )
 
     async def toggle_skill_by_id(self, id: str) -> Optional[SkillModel]:
-        """
-        Toggle a skill's active state by ID.
+        """Toggle a skill's active state.
+
+        Flips the `is_active` flag. Requires owner, write access, or admin role.
 
         Args:
             id: The skill ID.
 
         Returns:
-            Optional[SkillModel]: The updated skill details.
+            Optional[SkillModel]: The updated skill.
         """
         return await self._request(
             "POST",
@@ -177,14 +180,15 @@ class SkillsClient(ResourceBase):
         )
 
     async def delete_skill_by_id(self, id: str) -> bool:
-        """
-        Delete a skill by ID.
+        """Delete a skill by ID.
+
+        Requires owner, write access, or admin role.
 
         Args:
             id: The skill ID.
 
         Returns:
-            bool: True if successful, False otherwise.
+            bool: True if deletion succeeded.
         """
         return await self._request(
             "DELETE",

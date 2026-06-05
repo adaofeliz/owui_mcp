@@ -1,104 +1,112 @@
-"""Models for the Automations endpoints.
+"""Automation models for the Open WebUI scheduling system.
 
-This module provides Pydantic models for automation scheduling, execution,
-and run history. Automations allow recurring chat completions based on an
-RRULE schedule.
+Automations are scheduled tasks that execute prompts on a recurring basis using
+RRULE scheduling. Each automation creates a chat and runs through the full chat
+completion pipeline when triggered.
 """
 
-from typing import Optional
+from typing import Optional, Any
 from pydantic import BaseModel, ConfigDict
 
 
 class AutomationTerminalConfig(BaseModel):
-    """Terminal server configuration for an automation."""
+    """Configuration for a terminal server attached to an automation.
+
+    When present, the automation's execution will connect to the specified
+    terminal server before running the prompt.
+    """
 
     server_id: str
-    """The terminal server ID to use for execution."""
+    """ID of the terminal server to connect to."""
 
     cwd: Optional[str] = None
-    """Optional working directory for the terminal session."""
+    """Working directory to set on the terminal server before execution."""
 
 
 class AutomationData(BaseModel):
-    """Core automation execution data.
+    """Core data payload defining what an automation does and when it runs.
 
-    Defines the prompt, model, schedule rule, and optional terminal
-    configuration used when the automation runs.
+    This is the structured form used in create/update requests. When stored
+    in the database and returned by the API, it is serialized as a plain dict
+    on `AutomationModel.data`.
     """
 
     prompt: str
-    """The prompt text sent to the model on each execution."""
+    """Prompt template to execute. Supports template variables like `{{user_name}}`."""
 
     model_id: str
-    """The model identifier to use for generating responses."""
+    """ID of the model to use for chat completion."""
 
     rrule: str
-    """Recurrence rule string defining the schedule (e.g., 'FREQ=DAILY;INTERVAL=1')."""
+    """RRULE recurrence rule defining the schedule (RFC 5545). For example,
+    `FREQ=DAILY;DTSTART=20250101T090000Z` for daily at 9 AM UTC."""
 
     terminal: Optional[AutomationTerminalConfig] = None
-    """Optional terminal server configuration for headless execution."""
+    """Optional terminal server configuration."""
 
 
 class AutomationModel(BaseModel):
-    """Base automation record model.
+    """Full automation model as stored in the database.
 
-    Represents a stored automation with its schedule configuration and status.
+    Represents an automation with all persisted fields including scheduling state.
     """
 
-    model_config = ConfigDict(from_attributes=True)
-
     id: str
-    """Unique automation identifier."""
+    """Unique identifier (UUID)."""
 
     user_id: str
-    """ID of the user who owns this automation."""
+    """ID of the user who owns the automation."""
 
     name: str
     """Display name of the automation."""
 
-    data: dict
-    """Serialized automation execution data.
+    data: dict[str, Any]
+    """Serialized automation data defining the prompt, schedule, and model.
 
     Dict Fields:
-        - `prompt` (str, required): The prompt text sent to the model
-        - `model_id` (str, required): The model identifier
-        - `rrule` (str, required): Recurrence rule string
-        - `terminal` (dict, optional): Terminal server config with `server_id` and optional `cwd`
+        - `prompt` (str, required): Prompt template to execute
+        - `model_id` (str, required): Model ID for chat completion
+        - `rrule` (str, required): RRULE recurrence rule for scheduling
+        - `terminal` (dict, optional): Terminal server config with `server_id` and
+          optional `cwd` keys
     """
 
-    meta: Optional[dict] = None
+    meta: Optional[dict[str, Any]] = None
     """Optional metadata for the automation.
 
     Dict Fields:
-        - `system_prompt` (str, optional): Custom system prompt override
-        - `temperature` (float, optional): Sampling temperature
-        - `max_tokens` (int, optional): Maximum tokens to generate
-        - `webhook` (str, optional): Webhook URL for notifications
+        - `system_prompt` (str, optional): System prompt injected before the user prompt
+        - `temperature` (float, optional): Sampling temperature override
+        - `max_tokens` (int, optional): Maximum tokens override
+        - `webhook` (str, optional): Webhook URL notified after execution
     """
 
-    is_active: bool
-    """Whether the automation is currently active."""
+    is_active: bool = True
+    """Whether the automation is active and eligible for scheduling."""
 
     last_run_at: Optional[int] = None
-    """Timestamp of the last execution in epoch nanoseconds."""
+    """Timestamp (nanoseconds since epoch) of the last execution."""
 
     next_run_at: Optional[int] = None
-    """Timestamp of the next scheduled execution in epoch nanoseconds."""
+    """Timestamp (nanoseconds since epoch) of the next scheduled execution."""
 
     created_at: int
-    """Creation timestamp in epoch nanoseconds."""
+    """Timestamp (nanoseconds since epoch) of creation."""
 
     updated_at: int
-    """Last update timestamp in epoch nanoseconds."""
-
-
-class AutomationRunModel(BaseModel):
-    """Record of a single automation execution."""
+    """Timestamp (nanoseconds since epoch) of last update."""
 
     model_config = ConfigDict(from_attributes=True)
 
+
+class AutomationRunModel(BaseModel):
+    """Record of a single automation execution.
+
+    Each time an automation runs, a run record is created tracking the outcome.
+    """
+
     id: str
-    """Unique run identifier."""
+    """Unique identifier (UUID)."""
 
     automation_id: str
     """ID of the parent automation."""
@@ -110,54 +118,65 @@ class AutomationRunModel(BaseModel):
     """Execution status: 'success' or 'error'."""
 
     error: Optional[str] = None
-    """Error message if the run failed."""
+    """Error message if status is 'error'."""
 
     created_at: int
-    """Run timestamp in epoch nanoseconds."""
+    """Timestamp (nanoseconds since epoch) of when the run completed."""
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AutomationForm(BaseModel):
-    """Form data for creating or updating an automation."""
+    """Form for creating or updating an automation.
+
+    The `data` field contains the structured automation definition including
+    the RRULE schedule. The backend validates the RRULE against the user's
+    timezone and enforces rate limits.
+    """
 
     name: str
-    """Display name for the automation."""
+    """Display name of the automation."""
 
     data: AutomationData
-    """Core execution data including prompt, model, and schedule."""
+    """Core automation data: prompt, model, schedule, and optional terminal config."""
 
-    meta: Optional[dict] = None
-    """Optional metadata.
+    meta: Optional[dict[str, Any]] = None
+    """Optional metadata for the automation.
 
     Dict Fields:
-        - `system_prompt` (str, optional): Custom system prompt override
-        - `temperature` (float, optional): Sampling temperature
-        - `max_tokens` (int, optional): Maximum tokens to generate
-        - `webhook` (str, optional): Webhook URL for notifications
+        - `system_prompt` (str, optional): System prompt injected before the user prompt
+        - `temperature` (float, optional): Sampling temperature override
+        - `max_tokens` (int, optional): Maximum tokens override
+        - `webhook` (str, optional): Webhook URL notified after execution
     """
 
     is_active: Optional[bool] = True
-    """Whether the automation should be active. Defaults to True."""
+    """Whether the automation should be active on creation. Defaults to True."""
 
 
 class AutomationResponse(AutomationModel):
-    """Enriched automation response including run history and upcoming schedule.
+    """Enriched automation response with run history and computed next runs.
 
-    Extends `AutomationModel` with computed fields for the latest run
-    and next scheduled execution times.
+    Extends `AutomationModel` with the latest run record and a list of
+    upcoming execution timestamps.
     """
 
     last_run: Optional[AutomationRunModel] = None
-    """The most recent execution record for this automation."""
+    """The most recent run record, if any."""
 
     next_runs: Optional[list[int]] = None
-    """List of upcoming execution timestamps in epoch nanoseconds."""
+    """List of upcoming execution timestamps (nanoseconds since epoch)."""
 
 
 class AutomationListResponse(BaseModel):
-    """Paginated list of automations."""
+    """Paginated list of automations with enriched run data.
 
-    items: list[AutomationResponse]
-    """List of automation records for the current page."""
+    Each item includes the latest run record. The `total` field reflects the
+    total count before pagination.
+    """
 
-    total: int
+    items: list[AutomationResponse] = []
+    """List of automations in the current page."""
+
+    total: int = 0
     """Total number of automations matching the query."""

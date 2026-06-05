@@ -7,10 +7,7 @@ for interacting with the Open WebUI backend. It aggregates various sub-clients
 """
 
 from owui_client.client_base import OWUIClientBase
-from owui_client.routers.analytics import AnalyticsClient
 from owui_client.routers.auths import AuthsClient
-from owui_client.routers.automations import AutomationsClient
-from owui_client.routers.calendar import CalendarClient
 from owui_client.routers.users import UsersClient
 from owui_client.routers.configs import ConfigsClient
 from owui_client.routers.notes import NotesClient
@@ -29,15 +26,17 @@ from owui_client.routers.chats import ChatsClient
 from owui_client.routers.models import ModelsClient
 from owui_client.routers.knowledge import KnowledgeClient
 from owui_client.routers.tools import ToolsClient
+from owui_client.routers.skills import SkillsClient
 from owui_client.routers.memories import MemoriesClient
+from owui_client.routers.analytics import AnalyticsClient
+from owui_client.routers.automations import AutomationsClient
+from owui_client.routers.calendar import CalendarClient
 from owui_client.routers.folders import FoldersClient
 from owui_client.routers.functions import FunctionsClient
-from owui_client.routers.skills import SkillsClient
-from owui_client.routers.terminals import TerminalsClient
 from owui_client.routers.evaluations import EvaluationsClient
 from owui_client.routers.utils import UtilsClient
+from owui_client.routers.terminals import TerminalsClient
 from owui_client.routers.root import RootClient
-from owui_client.routers.scim import SCIMClient
 from owui_client.shortcuts import Shortcuts
 
 
@@ -58,17 +57,8 @@ class OpenWebUI(OWUIClientBase):
     ):
         super().__init__(api_url=api_url, api_key=api_key)
 
-        self.analytics = AnalyticsClient(self)
-        """Client for Analytics endpoints."""
-
         self.auths = AuthsClient(self)
         """Client for Authentication endpoints."""
-
-        self.automations = AutomationsClient(self)
-        """Client for Automations endpoints."""
-
-        self.calendar = CalendarClient(self)
-        """Client for Calendar endpoints."""
 
         self.users = UsersClient(self)
         """Client for Users endpoints."""
@@ -124,8 +114,20 @@ class OpenWebUI(OWUIClientBase):
         self.tools = ToolsClient(self)
         """Client for Tools endpoints."""
 
+        self.skills = SkillsClient(self)
+        """Client for Skills endpoints."""
+
         self.memories = MemoriesClient(self)
         """Client for Memories endpoints."""
+
+        self.analytics = AnalyticsClient(self)
+        """Client for Analytics endpoints."""
+
+        self.automations = AutomationsClient(self)
+        """Client for Automations endpoints."""
+
+        self.calendar = CalendarClient(self)
+        """Client for Calendar endpoints."""
 
         self.folders = FoldersClient(self)
         """Client for Folders endpoints."""
@@ -133,23 +135,17 @@ class OpenWebUI(OWUIClientBase):
         self.functions = FunctionsClient(self)
         """Client for Functions endpoints."""
 
-        self.skills = SkillsClient(self)
-        """Client for Skills endpoints."""
+        self.evaluations = EvaluationsClient(self)
+        """Client for Evaluations endpoints."""
 
         self.terminals = TerminalsClient(self)
         """Client for Terminals endpoints."""
-
-        self.evaluations = EvaluationsClient(self)
-        """Client for Evaluations endpoints."""
 
         self.utils = UtilsClient(self)
         """Client for Utils endpoints."""
 
         self.root = RootClient(self)
         """Client for Root endpoints."""
-
-        self.scim = SCIMClient(self)
-        """Client for SCIM endpoints."""
 
         self.shortcuts = Shortcuts(self)
         """Helper for shortcut methods."""

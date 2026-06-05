@@ -18,7 +18,6 @@ from owui_client.models.ollama import (
     GenerateChatCompletionForm,
     ConnectionVerificationForm,
     UrlForm,
-    ResponsesForm,
 )
 
 
@@ -83,7 +82,7 @@ class OllamaClient(ResourceBase):
             Response data from the verification endpoint (usually version info).
         """
         return await self._request(
-            "POST", self._get_url("ollama/verify"), json=form.model_dump()
+            "POST", self._get_url("ollama/verify"), json=form.model_dump(exclude_none=True)
         )
 
     async def get_config(self) -> Dict[str, Any]:
@@ -106,7 +105,7 @@ class OllamaClient(ResourceBase):
             Updated configuration dictionary.
         """
         return await self._request(
-            "POST", self._get_url("ollama/config/update"), json=form.model_dump()
+            "POST", self._get_url("ollama/config/update"), json=form.model_dump(exclude_none=True)
         )
 
     async def get_models(self, url_idx: int = None) -> Dict[str, Any]:
@@ -390,6 +389,50 @@ class OllamaClient(ResourceBase):
             "POST", self._get_url(path), json=payload
         )
 
+    async def generate_anthropic_messages(self, payload: Dict, url_idx: int = None) -> Dict[str, Any]:
+        """
+        Generate messages using Ollama's Anthropic-compatible /v1/messages endpoint.
+
+        Proxies the request to the Ollama backend, applying model resolution,
+        access control, and prefix_id handling. See
+        https://docs.ollama.com/api/anthropic-compatibility
+
+        Args:
+            payload: Anthropic Messages API request payload. Must include `model`.
+            url_idx: Optional index of the Ollama server.
+
+        Returns:
+            Anthropic-compatible messages response.
+        """
+        path = "ollama/v1/messages"
+        if url_idx is not None:
+            path = f"{path}/{url_idx}"
+        return await self._request(
+            "POST", self._get_url(path), json=payload
+        )
+
+    async def generate_responses(self, payload: Dict, url_idx: int = None) -> Dict[str, Any]:
+        """
+        Generate responses using Ollama's OpenAI-compatible /v1/responses endpoint.
+
+        Proxies the request to the Ollama backend, applying model resolution,
+        access control, and prefix_id handling. See
+        https://ollama.com/blog/responses-api
+
+        Args:
+            payload: OpenAI Responses API request payload. Must include `model`.
+            url_idx: Optional index of the Ollama server.
+
+        Returns:
+            OpenAI-compatible responses response.
+        """
+        path = "ollama/v1/responses"
+        if url_idx is not None:
+            path = f"{path}/{url_idx}"
+        return await self._request(
+            "POST", self._get_url(path), json=payload
+        )
+
     async def get_openai_models(self, url_idx: int = None) -> Dict[str, Any]:
         """
         List models using OpenAI-compatible endpoint.
@@ -404,52 +447,6 @@ class OllamaClient(ResourceBase):
         if url_idx is not None:
             path = f"{path}/{url_idx}"
         return await self._request("GET", self._get_url(path))
-
-    async def generate_anthropic_messages(self, payload: Dict[str, Any], url_idx: int = None) -> Union[Dict[str, Any], str]:
-        """
-        Generate a response using Ollama's Anthropic-compatible /v1/messages endpoint.
-
-        Proxies the request to the Ollama backend. If `stream=True` is set in the payload,
-        the client waits for the full response and returns it as a string.
-
-        Args:
-            payload: Anthropic Messages API request payload.
-            url_idx: Optional index of the Ollama server.
-
-        Returns:
-            Dict or string depending on the `stream` parameter in the payload.
-        """
-        path = "ollama/v1/messages"
-        if url_idx is not None:
-            path = f"{path}/{url_idx}"
-        return await self._request(
-            "POST", self._get_url(path), json=payload
-        )
-
-    async def generate_responses(self, payload: Union[Dict[str, Any], ResponsesForm], url_idx: int = None) -> Union[Dict[str, Any], str]:
-        """
-        Generate a response using Ollama's OpenAI-compatible /v1/responses endpoint.
-
-        Proxies the request to the Ollama backend. If `stream=True` is set in the payload,
-        the client waits for the full response and returns it as a string.
-
-        Args:
-            payload: Responses API request payload. Must include a `model` field.
-            url_idx: Optional index of the Ollama server.
-
-        Returns:
-            Dict or string depending on the `stream` parameter in the payload.
-        """
-        path = "ollama/v1/responses"
-        if url_idx is not None:
-            path = f"{path}/{url_idx}"
-        if isinstance(payload, ResponsesForm):
-            json_payload = payload.model_dump(exclude_none=True)
-        else:
-            json_payload = payload
-        return await self._request(
-            "POST", self._get_url(path), json=json_payload
-        )
 
     async def download_model(self, form: UrlForm, url_idx: int = None) -> str:
         """
@@ -470,7 +467,7 @@ class OllamaClient(ResourceBase):
             path = f"{path}/{url_idx}"
         # This endpoint returns a streaming response
         return await self._request(
-            "POST", self._get_url(path), json=form.model_dump()
+            "POST", self._get_url(path), json=form.model_dump(exclude_none=True)
         )
 
     async def upload_model(self, file_path: Union[str, Path], url_idx: int = None) -> str:

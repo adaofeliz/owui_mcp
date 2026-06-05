@@ -1,3 +1,5 @@
+"""Retrieval, RAG configuration, and web search models."""
+
 from typing import List, Optional, Union, Dict
 from pydantic import BaseModel
 from owui_client.models.files import FileModel
@@ -108,7 +110,7 @@ class WebConfig(BaseModel):
     WEB_SEARCH_DOMAIN_FILTER_LIST: Optional[List[str]] = []
     """List of domains to filter from web search results."""
     WEB_FETCH_MAX_CONTENT_LENGTH: Optional[int] = None
-    """Maximum content length to fetch from web pages."""
+    """Maximum content length in characters for web fetch results. Content exceeding this is truncated."""
     BYPASS_WEB_SEARCH_EMBEDDING_AND_RETRIEVAL: Optional[bool] = None
     """Whether to bypass embedding and retrieval for web search results."""
     BYPASS_WEB_SEARCH_WEB_LOADER: Optional[bool] = None
@@ -131,6 +133,8 @@ class WebConfig(BaseModel):
     """Engine ID for Google Programmable Search Engine."""
     BRAVE_SEARCH_API_KEY: Optional[str] = None
     """API key for Brave Search."""
+    BRAVE_SEARCH_CONTEXT_TOKENS: Optional[int] = None
+    """Maximum number of context tokens returned by Brave Search. Defaults to 8192."""
     KAGI_SEARCH_API_KEY: Optional[str] = None
     """API key for Kagi Search."""
     MOJEEK_SEARCH_API_KEY: Optional[str] = None
@@ -227,6 +231,21 @@ class WebConfig(BaseModel):
 
     Defaults to '{"query": {"searchType": "SEARCH_TYPE_COM"}}' if not specified.
     """
+    LINKUP_API_KEY: Optional[str] = None
+    """API key for Linkup Search."""
+    LINKUP_SEARCH_PARAMS: Optional[Dict] = None
+    """Parameters for Linkup search.
+
+    Dict Fields:
+        - `url` (str, optional): Override endpoint URL. Defaults to 'https://api.linkup.so/v1/search'.
+        - `depth` (str, optional): Search depth. Typical values: 'standard', 'deep'. Defaults to 'standard'.
+        - `outputType` (str, optional): Output type. Typical values: 'sourcedAnswer', 'searchResults'. Defaults to 'sourcedAnswer'.
+        - Additional Linkup API parameters may be included.
+
+    The dictionary is forwarded to the Linkup Search API as the JSON body (with `q` and `maxResults`
+    injected automatically). The special `url` key, if present, is popped and used as the request
+    endpoint instead of the default. See the Linkup API documentation for additional supported parameters.
+    """
 
 
 class ConfigForm(BaseModel):
@@ -319,9 +338,9 @@ class ConfigForm(BaseModel):
     MISTRAL_OCR_API_KEY: Optional[str] = None
     """API key for Mistral OCR."""
     PADDLEOCR_VL_BASE_URL: Optional[str] = None
-    """Base URL for PaddleOCR VL API."""
+    """Base URL for PaddleOCR VL service. Defaults to 'http://localhost:8080'."""
     PADDLEOCR_VL_TOKEN: Optional[str] = None
-    """API token for PaddleOCR VL."""
+    """Authentication token for PaddleOCR VL service."""
 
     # MinerU settings
     MINERU_API_MODE: Optional[str] = None
@@ -345,6 +364,14 @@ class ConfigForm(BaseModel):
 
     This dictionary is passed directly to the MinerU API for document parsing configuration.
     """
+    MINERU_FILE_EXTENSIONS: Optional[List[str]] = None
+    """List of file extensions that MinerU is allowed to process (e.g., `['pdf']`).
+
+    Files uploaded to the system with extensions in this list are routed through the MinerU
+    content extraction engine when `CONTENT_EXTRACTION_ENGINE` is set to `mineru`. Frontend
+    typically accepts a comma-separated string (e.g., `'pdf'`) and splits it into a list.
+    Defaults to `['pdf']` if not specified.
+    """
 
     # Reranking settings
     RAG_RERANKING_MODEL: Optional[str] = None
@@ -352,7 +379,7 @@ class ConfigForm(BaseModel):
     RAG_RERANKING_ENGINE: Optional[str] = None
     """Engine for RAG reranking."""
     RAG_RERANKING_BATCH_SIZE: Optional[int] = None
-    """Batch size for reranking operations."""
+    """Batch size for reranking operations. Defaults to 32."""
     RAG_EXTERNAL_RERANKER_URL: Optional[str] = None
     """URL for external reranker."""
     RAG_EXTERNAL_RERANKER_API_KEY: Optional[str] = None

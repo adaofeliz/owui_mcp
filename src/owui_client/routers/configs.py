@@ -14,7 +14,7 @@ from owui_client.models.configs import (
     SetBannersForm,
     TerminalServersConfigForm,
     TerminalServerConnection,
-    TerminalServerPolicyForm
+    TerminalServerPolicyForm,
 )
 
 class ConfigsClient(ResourceBase):
@@ -196,21 +196,6 @@ class ConfigsClient(ResourceBase):
             json=form_data.model_dump(),
         )
 
-    async def get_models_defaults(self) -> Dict[str, Any]:
-        """Get default model metadata.
-
-        Returns a subset of model configuration containing only the
-        default metadata for models.
-
-        Returns:
-            Dictionary with `DEFAULT_MODEL_METADATA` key.
-        """
-        return await self._request(
-            "GET",
-            "/v1/configs/models/defaults",
-            model=dict,
-        )
-
     async def get_models_config(self) -> ModelsConfigForm:
         """
         Get the current models configuration.
@@ -325,19 +310,16 @@ class ConfigsClient(ResourceBase):
     async def verify_terminal_server(
         self, form_data: TerminalServerConnection
     ) -> Dict[str, Any]:
-        """Verify a terminal server connection.
+        """Verify a terminal server connection by detecting its type.
 
-        Tries to detect the server type by probing the orchestrator policies
-        endpoint first, then falling back to the plain terminal config endpoint.
+        Tries the orchestrator policies endpoint first, then falls back to the
+        plain terminal config endpoint. Returns the detected server type.
 
         Args:
-            form_data: `TerminalServerConnection` details to verify.
+            form_data: `TerminalServerConnection` with at least `url` set.
 
         Returns:
-            Dictionary with `status` (bool) and `type` ("orchestrator" or "terminal").
-
-        Raises:
-            APIError: When the terminal server URL is missing or the connection fails.
+            Dictionary with `status` (bool) and `type` ('orchestrator' or 'terminal').
         """
         return await self._request(
             "POST",
@@ -346,24 +328,39 @@ class ConfigsClient(ResourceBase):
             json=form_data.model_dump(),
         )
 
-    async def set_terminal_server_policy(
+    async def put_terminal_server_policy(
         self, form_data: TerminalServerPolicyForm
     ) -> Dict[str, Any]:
-        """Proxy a policy PUT to an orchestrator terminal server.
+        """Push a policy to an orchestrator terminal server.
+
+        Proxies a PUT request to the orchestrator's /api/v1/policies/{policy_id}
+        endpoint.
 
         Args:
-            form_data: `TerminalServerPolicyForm` containing the target URL,
-                authentication details, policy ID, and policy data.
+            form_data: `TerminalServerPolicyForm` with the orchestrator URL,
+                credentials, policy ID, and policy data.
 
         Returns:
-            The JSON response from the orchestrator server.
-
-        Raises:
-            APIError: When the server URL is missing or the PUT request fails.
+            The policy object returned by the orchestrator.
         """
         return await self._request(
             "POST",
             "/v1/configs/terminal_servers/policy",
             model=dict,
             json=form_data.model_dump(),
+        )
+
+    async def get_models_defaults(self) -> Dict[str, Any]:
+        """Get the default model metadata.
+
+        Returns only the DEFAULT_MODEL_METADATA setting, unlike `get_models_config`
+        which returns the full models configuration. Available to all verified users.
+
+        Returns:
+            Dictionary with `DEFAULT_MODEL_METADATA` key.
+        """
+        return await self._request(
+            "GET",
+            "/v1/configs/models/defaults",
+            model=dict,
         )

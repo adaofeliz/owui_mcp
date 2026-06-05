@@ -47,7 +47,7 @@ class NoteModel(BaseModel):
     """
 
     is_pinned: Optional[bool] = False
-    """Whether the note is pinned to the top of the notes list."""
+    """Whether the note is pinned by the current user. Per-user property, not stored on the note itself."""
 
     access_grants: list[AccessGrantModel] = Field(default_factory=list)
     """
@@ -252,7 +252,7 @@ class NoteItemResponse(BaseModel):
     """
 
     is_pinned: Optional[bool] = False
-    """Whether the note is pinned to the top of the notes list."""
+    """Whether the note is pinned by the current user. Per-user property, not stored on the note itself."""
 
     updated_at: int
     """Timestamp when the note was last updated (in epoch)."""

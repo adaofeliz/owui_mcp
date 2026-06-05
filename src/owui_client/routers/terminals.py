@@ -1,71 +1,83 @@
 """Client for the Terminals endpoints.
 
-This module provides access to the terminal server reverse proxy endpoints,
-including listing available terminal servers and proxying requests to them.
+Reverse proxy for admin-configured terminal servers. Provides access to
+terminal server listings and HTTP proxy forwarding.
+
+The WebSocket proxy endpoint (``/{server_id}/api/terminals/{session_id}``)
+is not supported by this HTTP client — WebSocket connections cannot be
+wrapped by httpx.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from owui_client.client_base import ResourceBase
-from owui_client.models.terminals import TerminalServer
 
 
 class TerminalsClient(ResourceBase):
-    """Client for the Terminals endpoints."""
+    """
+    Client for the Terminals endpoints.
 
-    async def list_terminals(self) -> List[TerminalServer]:
-        """Return terminal servers the authenticated user has access to.
+    Terminals is a reverse-proxy feature that forwards HTTP requests to
+    admin-configured terminal servers. Only the HTTP endpoints are
+    implemented; the interactive WebSocket proxy is not supported.
+    """
+
+    async def list_servers(self) -> list[dict[str, Any]]:
+        """List terminal servers the authenticated user has access to.
+
+        Returns only servers that are enabled and for which the user's
+        group membership grants access. Each entry contains ``id``,
+        ``url``, and ``name``.
 
         Returns:
-            List of `TerminalServer` objects containing `id`, `url`, and `name`
-            for each enabled terminal server the user is authorized to use.
+            List of terminal server dicts, each with keys ``id``, ``url``,
+            ``name``.
         """
-        return await self._request(
-            "GET",
-            "/v1/terminals/",
-            model=List[TerminalServer],
-        )
+        return await self._request("GET", "/v1/terminals/")
 
     async def proxy(
         self,
         server_id: str,
         path: str,
         method: str = "GET",
-        data: Any = None,
-        json: Any = None,
-        params: Optional[Dict[str, Any]] = None,
-        headers: Optional[Dict[str, str]] = None,
+        json: Optional[Any] = None,
+        data: Optional[Any] = None,
+        params: Optional[dict[str, Any]] = None,
     ) -> Any:
-        """Proxy a request to the admin terminal server identified by *server_id*.
+        """Proxy a request to a terminal server.
 
-        This method forwards an arbitrary HTTP request to a configured terminal
-        server through the Open WebUI reverse proxy. The caller is responsible
-        for providing a valid *path* relative to the terminal server's base URL.
+        Forwards an HTTP request through the Open WebUI backend to the
+        terminal server identified by *server_id*. The backend handles
+        authentication, path sanitization, and access control.
 
         Args:
-            server_id: The unique identifier of the target terminal server.
-            path: The path to proxy (e.g. ``"api/terminals/session-id"``).
-                Leading slashes are stripped automatically.
-            method: HTTP method to use (default: ``"GET"``).
-            data: Raw request body data.
-            json: JSON-serializable request body.
-            params: Query parameters to append to the proxied URL.
-            headers: Additional headers to forward with the request.
+            server_id: ID of the terminal server to proxy to.
+            path: URL path to append after the server base URL.
+            method: HTTP method (GET, POST, PUT, PATCH, DELETE, HEAD,
+                OPTIONS). Defaults to ``"GET"``.
+            json: JSON body to forward with the request.
+            data: Form or raw body to forward with the request.
+            params: Query parameters to forward with the request.
 
         Returns:
-            The upstream response body. JSON responses are parsed automatically;
-            non-JSON responses are returned as text.
+            The proxied response from the terminal server. May be a dict,
+            list, bytes, or other type depending on the upstream response.
 
         Raises:
-            HTTPStatusError: If the terminal server is not found (404),
-                access is denied (403), or the upstream returns an error.
+            HTTPStatusError: If the backend returns 403 (access denied),
+                404 (server not found), 400 (invalid path), 502 (proxy
+                error), or 503 (server URL not configured).
         """
-        safe_path = path.lstrip("/")
+        kwargs: dict[str, Any] = {}
+        if json is not None:
+            kwargs["json"] = json
+        if data is not None:
+            kwargs["data"] = data
+        if params is not None:
+            kwargs["params"] = params
+
         return await self._request(
             method,
-            f"/v1/terminals/{server_id}/{safe_path}",
-            data=data,
-            json=json,
-            params=params,
-            headers=headers,
+            f"/v1/terminals/{server_id}/{path}",
+            **kwargs,
         )

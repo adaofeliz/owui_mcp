@@ -108,7 +108,7 @@ class ModelsClient(ResourceBase):
             "POST",
             "/v1/models/create",
             model=Optional[ModelModel],
-            json=form_data.model_dump(),
+            json=form_data.model_dump(exclude_none=True),
         )
 
     async def export_models(self) -> list[ModelModel]:
@@ -131,7 +131,7 @@ class ModelsClient(ResourceBase):
             bool: True if import was successful.
         """
         return await self._request(
-            "POST", "/v1/models/import", model=bool, json=form_data.model_dump()
+            "POST", "/v1/models/import", model=bool, json=form_data.model_dump(exclude_none=True)
         )
 
     async def sync_models(self, form_data: SyncModelsForm) -> list[ModelModel]:
@@ -148,7 +148,7 @@ class ModelsClient(ResourceBase):
             "POST",
             "/v1/models/sync",
             model=list[ModelModel],
-            json=form_data.model_dump(),
+            json=form_data.model_dump(exclude_none=True),
         )
 
     async def get_model_by_id(self, id: str) -> Optional[ModelResponse]:
@@ -210,7 +210,7 @@ class ModelsClient(ResourceBase):
             "POST",
             "/v1/models/model/update",
             model=Optional[ModelModel],
-            json=form_data.model_dump(),
+            json=form_data.model_dump(exclude_none=True),
         )
 
     async def delete_model_by_id(self, id: str) -> bool:
@@ -253,4 +253,29 @@ class ModelsClient(ResourceBase):
             "/v1/models/model/access/update",
             model=Optional[ModelModel],
             json=form_data.model_dump(),
+        )
+
+    async def unload_model(self, model: str) -> dict:
+        """
+        Unload a model from its provider.
+
+        Resolves the provider that owns the model and calls its native unload
+        mechanism. Supports Ollama (keep_alive=0) and llama.cpp (/models/unload).
+        Requires admin privileges.
+
+        Args:
+            model: The model ID to unload.
+
+        Returns:
+            dict: Provider-specific response. Ollama returns `{"status": True}`.
+
+        Raises:
+            HTTPException: 400 if provider doesn't support unloading, 404 if
+                model not found, 500 on provider errors.
+        """
+        return await self._request(
+            "POST",
+            "/api/models/unload",
+            model=dict,
+            json={"model": model},
         )

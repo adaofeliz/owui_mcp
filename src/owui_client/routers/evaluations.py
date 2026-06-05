@@ -86,7 +86,19 @@ class EvaluationsClient(ResourceBase):
         return await self._request(
             "POST",
             "/v1/evaluations/config",
-            json=form_data.model_dump(),
+            json=form_data.model_dump(exclude_none=True),
+        )
+
+    async def get_feedback_model_ids(self) -> List[str]:
+        """
+        Get distinct model IDs that have feedback entries (admin only).
+
+        Returns:
+            List[str]: A list of unique model IDs that have associated feedback.
+        """
+        return await self._request(
+            "GET",
+            "/v1/evaluations/feedbacks/models",
         )
 
     async def get_all_feedbacks(self) -> List[FeedbackResponse]:
@@ -167,19 +179,6 @@ class EvaluationsClient(ResourceBase):
             model=bool,
         )
 
-    async def get_feedback_model_ids(self) -> list[str]:
-        """
-        Get all distinct model IDs that have feedback entries (admin only).
-
-        Returns:
-            list[str]: A list of distinct model IDs.
-        """
-        return await self._request(
-            "GET",
-            "/v1/evaluations/feedbacks/models",
-            model=list[str],
-        )
-
     async def get_feedbacks_list(
         self,
         order_by: Optional[str] = None,
@@ -226,7 +225,7 @@ class EvaluationsClient(ResourceBase):
             "POST",
             "/v1/evaluations/feedback",
             model=FeedbackModel,
-            json=form_data.model_dump(),
+            json=form_data.model_dump(exclude_none=True),
         )
 
     async def get_feedback(self, id: str) -> FeedbackModel:
@@ -260,7 +259,7 @@ class EvaluationsClient(ResourceBase):
             "POST",
             f"/v1/evaluations/feedback/{id}",
             model=FeedbackModel,
-            json=form_data.model_dump(),
+            json=form_data.model_dump(exclude_none=True),
         )
 
     async def delete_feedback(self, id: str) -> bool:

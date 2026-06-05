@@ -1,4 +1,8 @@
+import logging
+from uuid import uuid4
 from typing import List, Optional, Union
+
+logger = logging.getLogger(__name__)
 from owui_client.client_base import ResourceBase
 from owui_client.models.chats import (
     ChatModel,
@@ -24,7 +28,6 @@ from owui_client.models.chats import (
     ChatActionResponse,
 )
 from owui_client.models.tags import TagModel
-from owui_client.models.access_grants import AccessGrantResponse
 
 
 class ChatsClient(ResourceBase):
@@ -188,7 +191,7 @@ class ChatsClient(ResourceBase):
             The created chat object.
         """
         return await self._request(
-            "POST", "/v1/chats/new", model=ChatResponse, json=form_data.model_dump()
+            "POST", "/v1/chats/new", model=ChatResponse, json=form_data.model_dump(exclude_none=True)
         )
 
     async def import_chats(self, form_data: ChatsImportForm) -> List[ChatResponse]:
@@ -202,7 +205,7 @@ class ChatsClient(ResourceBase):
             List of successfully imported chat objects.
         """
         return await self._request(
-            "POST", "/v1/chats/import", model=ChatResponse, json=form_data.model_dump()
+            "POST", "/v1/chats/import", model=ChatResponse, json=form_data.model_dump(exclude_none=True)
         )
 
     async def search(
@@ -382,7 +385,7 @@ class ChatsClient(ResourceBase):
             List of chats matching the tag.
         """
         return await self._request(
-            "POST", "/v1/chats/tags", model=ChatTitleIdResponse, json=form_data.model_dump()
+            "POST", "/v1/chats/tags", model=ChatTitleIdResponse, json=form_data.model_dump(exclude_none=True)
         )
 
     async def get(self, id: str) -> Optional[ChatResponse]:
@@ -409,7 +412,7 @@ class ChatsClient(ResourceBase):
             The updated chat object.
         """
         return await self._request(
-            "POST", f"/v1/chats/{id}", model=ChatResponse, json=form_data.model_dump()
+            "POST", f"/v1/chats/{id}", model=ChatResponse, json=form_data.model_dump(exclude_none=True)
         )
 
     async def update_message(
@@ -430,7 +433,7 @@ class ChatsClient(ResourceBase):
             "POST",
             f"/v1/chats/{id}/messages/{message_id}",
             model=ChatResponse,
-            json=form_data.model_dump(),
+            json=form_data.model_dump(exclude_none=True),
         )
 
     async def send_message_event(
@@ -451,7 +454,7 @@ class ChatsClient(ResourceBase):
             "POST",
             f"/v1/chats/{id}/messages/{message_id}/event",
             model=bool,
-            json=form_data.model_dump(),
+            json=form_data.model_dump(exclude_none=True),
         )
 
     async def delete(self, id: str) -> bool:
@@ -502,7 +505,7 @@ class ChatsClient(ResourceBase):
             The new chat object.
         """
         return await self._request(
-            "POST", f"/v1/chats/{id}/clone", model=ChatResponse, json=form_data.model_dump()
+            "POST", f"/v1/chats/{id}/clone", model=ChatResponse, json=form_data.model_dump(exclude_none=True)
         )
 
     async def clone_shared(self, id: str) -> Optional[ChatResponse]:
@@ -555,39 +558,46 @@ class ChatsClient(ResourceBase):
         """
         return await self._request("DELETE", f"/v1/chats/{id}/share", model=bool)
 
-    async def update_shared_access(
+    async def update_shared_chat_access(
         self, id: str, form_data: ChatAccessGrantsForm
     ) -> Optional[ChatResponse]:
         """Update access grants for a shared chat.
 
-        Sets the access control list for a shared chat, determining which users
-        and groups can read or write to it.
+        Sets the list of access grants controlling who can view or edit a
+        shared chat. The server filters the requested grants against the
+        calling user's permissions (e.g. `sharing.public_chats`).
 
         Args:
             id: The chat ID.
-            form_data: The access grants to set.
+            form_data: Access grants to apply. Each entry specifies a
+                principal type/id and permission level.
 
         Returns:
-            The updated chat object.
+            The chat as a `ChatResponse`, or None if not found.
         """
         return await self._request(
             "POST",
             f"/v1/chats/shared/{id}/access/update",
             model=ChatResponse,
-            json=form_data.model_dump(),
+            json=form_data.model_dump(exclude_none=True),
         )
 
-    async def get_shared_access(self, id: str) -> List[AccessGrantResponse]:
+    async def get_shared_chat_access(self, id: str) -> list[dict]:
         """Get access grants for a shared chat.
+
+        Returns the current list of access grant entries for a shared chat.
+        Each entry contains `id`, `principal_type`, `principal_id`, and
+        `permission`.
 
         Args:
             id: The chat ID.
 
         Returns:
-            List of access grants for the shared chat.
+            List of access grant dicts.
         """
         return await self._request(
-            "GET", f"/v1/chats/shared/{id}/access", model=AccessGrantResponse
+            "GET",
+            f"/v1/chats/shared/{id}/access",
         )
 
     async def update_folder(
@@ -604,7 +614,7 @@ class ChatsClient(ResourceBase):
             The updated chat object.
         """
         return await self._request(
-            "POST", f"/v1/chats/{id}/folder", model=ChatResponse, json=form_data.model_dump()
+            "POST", f"/v1/chats/{id}/folder", model=ChatResponse, json=form_data.model_dump(exclude_none=True)
         )
 
     async def get_tags(self, id: str) -> List[TagModel]:
@@ -631,7 +641,7 @@ class ChatsClient(ResourceBase):
             Updated list of tags for the chat.
         """
         return await self._request(
-            "POST", f"/v1/chats/{id}/tags", model=TagModel, json=form_data.model_dump()
+            "POST", f"/v1/chats/{id}/tags", model=TagModel, json=form_data.model_dump(exclude_none=True)
         )
 
     async def delete_tag(self, id: str, form_data: TagForm) -> List[TagModel]:
@@ -646,7 +656,7 @@ class ChatsClient(ResourceBase):
             Updated list of tags for the chat.
         """
         return await self._request(
-            "DELETE", f"/v1/chats/{id}/tags", model=TagModel, json=form_data.model_dump()
+            "DELETE", f"/v1/chats/{id}/tags", model=TagModel, json=form_data.model_dump(exclude_none=True)
         )
 
     async def delete_all_tags(self, id: str) -> Optional[bool]:
@@ -697,9 +707,16 @@ class ChatsClient(ResourceBase):
         """
         # Convert ChatCompletionForm to dict if needed
         if isinstance(form_data, ChatCompletionForm):
-            json_data = form_data.model_dump()
+            json_data = form_data.model_dump(exclude_none=True)
         else:
-            json_data = form_data
+            json_data = {k: v for k, v in form_data.items() if v is not None}
+
+        # Backend get_event_emitter crashes when chat_id is None in metadata.
+        # Provide a local: prefixed ID so the backend treats this as a temp chat.
+        if 'chat_id' not in json_data:
+            chat_id = f'local:api-{uuid4()}'
+            json_data['chat_id'] = chat_id
+            logger.debug("No chat_id provided, generating synthetic chat_id: %s", chat_id)
 
         return await self._request(
             "POST",
@@ -724,7 +741,7 @@ class ChatsClient(ResourceBase):
             Chat completion response.
         """
         if isinstance(form_data, ChatCompletionForm):
-            json_data = form_data.model_dump()
+            json_data = form_data.model_dump(exclude_none=True)
         else:
             json_data = form_data
 
@@ -762,7 +779,7 @@ class ChatsClient(ResourceBase):
         """
         # Convert ChatCompletedForm to dict if needed
         if isinstance(form_data, ChatCompletedForm):
-            json_data = form_data.model_dump()
+            json_data = form_data.model_dump(exclude_none=True)
         else:
             json_data = form_data
 
@@ -788,7 +805,7 @@ class ChatsClient(ResourceBase):
             Modified form data after processing outlet filters.
         """
         if isinstance(form_data, ChatCompletedForm):
-            json_data = form_data.model_dump()
+            json_data = form_data.model_dump(exclude_none=True)
         else:
             json_data = form_data
 
@@ -831,7 +848,7 @@ class ChatsClient(ResourceBase):
         """
         # Convert ChatActionForm to dict if needed
         if isinstance(form_data, ChatActionForm):
-            json_data = form_data.model_dump()
+            json_data = form_data.model_dump(exclude_none=True)
         else:
             json_data = form_data
 

@@ -34,14 +34,13 @@ class NotesClient(ResourceBase):
 
     async def get_pinned_notes(self) -> List[NoteItemResponse]:
         """
-        Get pinned notes visible to the user.
+        Get all notes pinned by the current user.
 
-        This endpoint returns a list of notes that the user has pinned.
-        If the user is an admin, they can see all pinned notes.
-        Otherwise, they can see their own pinned notes and pinned notes shared with them.
+        Returns notes the user has pinned, ordered by pin creation time (newest first).
+        The `is_pinned` field is always True for results from this endpoint.
 
         Returns:
-            A list of `NoteItemResponse` objects.
+            A list of `NoteItemResponse` objects, all with `is_pinned` set to True.
         """
         return await self._request(
             "GET",
@@ -107,7 +106,7 @@ class NotesClient(ResourceBase):
             "POST",
             "/v1/notes/create",
             model=Optional[NoteModel],
-            json=form_data.model_dump(),
+            json=form_data.model_dump(exclude_none=True),
         )
 
     async def get_note_by_id(self, id: str) -> Optional[NoteModel]:
@@ -143,7 +142,7 @@ class NotesClient(ResourceBase):
             "POST",
             f"/v1/notes/{id}/update",
             model=Optional[NoteModel],
-            json=form_data.model_dump(),
+            json=form_data.model_dump(exclude_none=True),
         )
 
     async def update_note_access_by_id(
@@ -168,21 +167,22 @@ class NotesClient(ResourceBase):
             "POST",
             f"/v1/notes/{id}/access/update",
             model=Optional[NoteModel],
-            json=form_data.model_dump(),
+            json=form_data.model_dump(exclude_none=True),
         )
 
     async def pin_note_by_id(self, id: str) -> Optional[NoteModel]:
         """
-        Toggle the pinned state of a note.
+        Toggle pin status on a note for the current user.
 
-        If the note is currently pinned, it will be unpinned.
-        If it is not pinned, it will be pinned.
+        If the note is already pinned, it will be unpinned. If not pinned, it will
+        be pinned. Pinning is per-user -- each user has their own set of pinned notes.
+        Requires at least read access to the note.
 
         Args:
             id: The unique identifier of the note to pin/unpin.
 
         Returns:
-            The updated note, or None if the operation failed.
+            The note with updated `is_pinned` status, or None if the note was not found.
         """
         return await self._request(
             "POST",

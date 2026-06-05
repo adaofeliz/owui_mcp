@@ -1,10 +1,10 @@
-from typing import Optional
+from typing import List, Optional
+
 from owui_client.client_base import ResourceBase
 from owui_client.models.automations import (
-    AutomationForm,
-    AutomationModel,
     AutomationResponse,
     AutomationRunModel,
+    AutomationForm,
     AutomationListResponse,
 )
 
@@ -12,29 +12,27 @@ from owui_client.models.automations import (
 class AutomationsClient(ResourceBase):
     """
     Client for the Automations endpoints.
-
-    This client manages scheduled automations that perform recurring
-    chat completions based on an RRULE schedule.
     """
 
-    async def list_automations(
+    async def get_automation_items(
         self,
         query: Optional[str] = None,
         status: Optional[str] = None,
         page: Optional[int] = 1,
     ) -> AutomationListResponse:
-        """List automations with optional filtering and pagination.
+        """Get a paginated, searchable list of automations.
 
-        Retrieves a paginated list of the user's automations, optionally
-        filtered by query string and status.
+        Returns automations owned by the authenticated user. Each item includes
+        the latest run record. Supports filtering by name/prompt text and
+        active/paused status.
 
         Args:
-            query: Optional search string to filter by automation name or prompt.
-            status: Optional status filter. Use 'active' or 'paused'.
-            page: Page number for pagination. Defaults to 1.
+            query: Optional search string to filter by name or prompt content.
+            status: Optional status filter: 'active' or 'paused'.
+            page: Page number (1-indexed). Defaults to 1.
 
         Returns:
-            `AutomationListResponse`: Paginated list of automations.
+            `AutomationListResponse`: Paginated automations with run history.
         """
         params = {}
         if query is not None:
@@ -47,113 +45,123 @@ class AutomationsClient(ResourceBase):
         return await self._request(
             "GET",
             "/v1/automations/list",
-            model=AutomationListResponse,
             params=params,
+            model=AutomationListResponse,
         )
 
-    async def create_automation(self, form_data: AutomationForm) -> AutomationResponse:
+    async def create_new_automation(
+        self, form_data: AutomationForm
+    ) -> Optional[AutomationResponse]:
         """Create a new automation.
 
-        Creates a scheduled automation that will execute chat completions
-        according to the provided RRULE schedule.
+        Validates the RRULE schedule and enforces user automation limits.
+        The automation is scheduled for its next run immediately upon creation.
 
         Args:
-            form_data: The automation configuration including name, data, and schedule.
+            form_data: The automation definition including name, data (prompt,
+                model_id, rrule), optional meta, and is_active flag.
 
         Returns:
-            `AutomationResponse`: The created automation with computed fields.
+            Optional[AutomationResponse]: The created automation with enriched run data.
         """
         return await self._request(
             "POST",
             "/v1/automations/create",
-            model=AutomationResponse,
-            json=form_data.model_dump(),
+            json=form_data.model_dump(mode="json", exclude_none=True),
+            model=Optional[AutomationResponse],
         )
 
-    async def get_automation(self, id: str) -> AutomationResponse:
-        """Get an automation by ID.
+    async def get_automation_by_id(self, id: str) -> Optional[AutomationResponse]:
+        """Get a single automation by ID with enriched run data.
 
-        Retrieves a single automation including its latest run and upcoming
-        schedule information.
+        Returns the automation details including the latest run record and
+        computed next run timestamps.
 
         Args:
-            id: The automation identifier.
+            id: The automation ID.
 
         Returns:
-            `AutomationResponse`: The automation details.
+            Optional[AutomationResponse]: The automation with run history.
         """
         return await self._request(
             "GET",
             f"/v1/automations/{id}",
-            model=AutomationResponse,
+            model=Optional[AutomationResponse],
         )
 
-    async def update_automation(
+    async def update_automation_by_id(
         self, id: str, form_data: AutomationForm
-    ) -> AutomationResponse:
-        """Update an existing automation.
+    ) -> Optional[AutomationResponse]:
+        """Update an automation by ID.
 
-        Replaces the automation's configuration with the provided form data.
+        Re-validates the RRULE and re-enforces rate limits. The schedule is
+        recalculated based on the new RRULE.
 
         Args:
-            id: The automation identifier.
-            form_data: The updated automation configuration.
+            id: The automation ID.
+            form_data: The updated automation definition.
 
         Returns:
-            `AutomationResponse`: The updated automation.
+            Optional[AutomationResponse]: The updated automation with enriched run data.
         """
         return await self._request(
             "POST",
             f"/v1/automations/{id}/update",
-            model=AutomationResponse,
-            json=form_data.model_dump(),
+            json=form_data.model_dump(mode="json", exclude_none=True),
+            model=Optional[AutomationResponse],
         )
 
-    async def toggle_automation(self, id: str) -> AutomationResponse:
+    async def toggle_automation_by_id(
+        self, id: str
+    ) -> Optional[AutomationResponse]:
         """Toggle an automation's active state.
 
-        Activates a paused automation or pauses an active one.
+        Flips the `is_active` flag. Paused automations are excluded from
+        scheduling. When reactivated, the next run is recalculated from the
+        RRULE.
 
         Args:
-            id: The automation identifier.
+            id: The automation ID.
 
         Returns:
-            `AutomationResponse`: The automation with its new active state.
+            Optional[AutomationResponse]: The toggled automation with enriched run data.
         """
         return await self._request(
             "POST",
             f"/v1/automations/{id}/toggle",
-            model=AutomationResponse,
+            model=Optional[AutomationResponse],
         )
 
-    async def run_automation(self, id: str) -> AutomationResponse:
-        """Trigger an automation to run immediately.
+    async def run_automation_by_id(
+        self, id: str
+    ) -> Optional[AutomationResponse]:
+        """Trigger an immediate execution of an automation.
 
-        Creates a background task to execute the automation and returns
-        the automation details. The execution happens asynchronously.
+        The automation runs asynchronously in the background. This endpoint
+        returns the current automation state immediately, not the run result.
 
         Args:
-            id: The automation identifier.
+            id: The automation ID.
 
         Returns:
-            `AutomationResponse`: The automation details.
+            Optional[AutomationResponse]: The automation state at trigger time.
         """
         return await self._request(
             "POST",
             f"/v1/automations/{id}/run",
-            model=AutomationResponse,
+            model=Optional[AutomationResponse],
         )
 
-    async def delete_automation(self, id: str) -> bool:
-        """Delete an automation.
+    async def delete_automation_by_id(self, id: str) -> bool:
+        """Delete an automation and all its run history by ID.
 
-        Removes the automation and all associated run history.
+        Permanently removes the automation and all associated run records.
 
         Args:
-            id: The automation identifier.
+            id: The automation ID.
 
         Returns:
-            bool: True if the automation was deleted successfully.
+            bool: True if deletion succeeded.
         """
         return await self._request(
             "DELETE",
@@ -166,22 +174,23 @@ class AutomationsClient(ResourceBase):
         id: str,
         skip: int = 0,
         limit: int = 50,
-    ) -> list[AutomationRunModel]:
-        """Get the execution history for an automation.
+    ) -> List[AutomationRunModel]:
+        """Get run history for an automation.
 
-        Retrieves a paginated list of run records for the given automation.
+        Returns execution records ordered by creation time descending (most
+        recent first).
 
         Args:
-            id: The automation identifier.
-            skip: Number of records to skip for pagination. Defaults to 0.
+            id: The automation ID.
+            skip: Number of records to skip. Defaults to 0.
             limit: Maximum number of records to return. Defaults to 50.
 
         Returns:
-            list[`AutomationRunModel`]: The automation run history.
+            List[AutomationRunModel]: List of run records.
         """
         return await self._request(
             "GET",
             f"/v1/automations/{id}/runs",
-            model=list[AutomationRunModel],
             params={"skip": skip, "limit": limit},
+            model=List[AutomationRunModel],
         )

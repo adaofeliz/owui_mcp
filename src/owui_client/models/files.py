@@ -1,10 +1,7 @@
+"""Models for file management and metadata."""
+
 from typing import Optional
 from pydantic import BaseModel, ConfigDict
-
-
-"""
-Models for File management.
-"""
 
 
 class FileMeta(BaseModel):
@@ -66,18 +63,6 @@ class FileModelResponse(BaseModel):
     """Unix timestamp when the file was last updated."""
 
     model_config = ConfigDict(extra="allow")
-
-
-class FileListResponse(BaseModel):
-    """
-    Paginated response model for listing files.
-    """
-
-    items: list[FileModelResponse]
-    """List of files on the current page."""
-
-    total: int
-    """Total number of files available."""
 
 
 class FileMetadataResponse(BaseModel):
@@ -174,6 +159,18 @@ class FileModel(BaseModel):
     """Unix timestamp when the file was last updated."""
 
 
+class FileListResponse(BaseModel):
+    """
+    Paginated response for listing files.
+    """
+
+    items: list[FileModelResponse]
+    """List of file objects in the current page."""
+
+    total: int
+    """Total number of files matching the query."""
+
+
 class ContentForm(BaseModel):
     """
     Form for updating file content text.
@@ -181,3 +178,12 @@ class ContentForm(BaseModel):
 
     content: str
     """The new text content for the file."""
+
+
+class FileRenameForm(BaseModel):
+    """
+    Form for renaming a file.
+    """
+
+    filename: str
+    """The new filename for the file."""

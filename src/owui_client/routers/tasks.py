@@ -28,7 +28,7 @@ class TasksClient(ResourceBase):
             "POST",
             "/v1/tasks/active/chats",
             model=ActiveChatsResponse,
-            json=form_data.model_dump(),
+            json=form_data.model_dump(exclude_none=True),
         )
 
     async def get_config(self) -> Dict[str, Any]:
@@ -60,7 +60,7 @@ class TasksClient(ResourceBase):
             "POST",
             "/v1/tasks/config/update",
             model=dict,
-            json=form_data.model_dump(),
+            json=form_data.model_dump(exclude_none=True),
         )
 
     async def generate_title(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -314,18 +314,21 @@ class TasksClient(ResourceBase):
 
     async def stop_tasks_by_chat_api(self, chat_id: str) -> Dict[str, Any]:
         """
-        Stop all background tasks associated with a specific chat (direct API endpoint).
+        Stop all background tasks associated with a specific chat.
 
-        This is the legacy endpoint from main.py. It stops all tasks linked to the given chat ID.
+        This endpoint is defined in main.py (not routers/tasks.py). It validates
+        that the user owns the chat (or is admin) before stopping tasks.
 
         Args:
             chat_id (str): The ID of the chat whose tasks should be stopped.
 
         Returns:
-            Dict[str, Any]: Result of the stop operation.
+            Dict[str, Any]: Status dictionary with keys:
+                - `status` (bool): Whether the operation succeeded.
+                - `message` (str): Description of the result.
         """
         return await self._request(
             "POST",
-            f"/tasks/chat/{chat_id}/stop",
+            f"/api/tasks/chat/{chat_id}/stop",
             model=dict,
         )

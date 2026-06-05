@@ -1,388 +1,378 @@
-"""Calendar models for the Open WebUI API.
+"""Calendar models for the Open WebUI scheduling system.
 
-This module provides Pydantic models for calendars, calendar events, attendees,
-and related forms and responses.
+Calendars contain events with optional recurrence (RRULE), attendees with RSVP
+status, and access-control grants for sharing. A virtual "Scheduled Tasks"
+calendar (`__scheduled_tasks__`) surfaces automation runs as read-only events.
 """
 
-from typing import Optional
+from typing import Optional, Any
 from pydantic import BaseModel, ConfigDict, Field
-from owui_client.models.users import UserResponse
-from owui_client.models.access_grants import AccessGrantModel
 
 
 class CalendarModel(BaseModel):
-    """A calendar owned by or shared with a user.
+    """A user-owned or shared calendar.
 
-    Calendars group events and control their visibility through access grants.
-    The backend automatically creates a 'Personal' default calendar if none exist.
-    A virtual 'Scheduled Tasks' calendar may also appear when automations are enabled.
+    The virtual Scheduled Tasks calendar has `is_system=True` and a fixed
+    id of `__scheduled_tasks__`. All other calendars are user-created.
     """
 
-    model_config = ConfigDict(from_attributes=True)
-
     id: str
-    """Unique identifier for the calendar."""
+    """Unique identifier (UUID), or `__scheduled_tasks__` for the system calendar."""
 
     user_id: str
-    """ID of the user who owns the calendar."""
+    """ID of the owning user."""
 
     name: str
     """Display name of the calendar."""
 
     color: Optional[str] = None
-    """Hex color code for the calendar (e.g., '#3b82f6')."""
+    """CSS color string for the calendar, e.g. `#3b82f6`."""
 
     is_default: bool = False
-    """Whether this is the user's default calendar."""
+    """Whether this is the user's default calendar. Only one default per user."""
 
     is_system: bool = False
-    """Whether this is a system calendar (e.g., Scheduled Tasks). System calendars cannot be deleted."""
+    """True for the virtual Scheduled Tasks calendar, False for user-created."""
 
-    data: Optional[dict] = None
-    """Custom data associated with the calendar.
-
-    Dict Fields:
-        This dictionary accepts arbitrary key-value pairs for extensibility.
-        No specific keys are enforced by the backend.
-    """
-
-    meta: Optional[dict] = None
-    """Metadata associated with the calendar.
+    data: Optional[dict[str, Any]] = None
+    """Arbitrary calendar data.
 
     Dict Fields:
-        This dictionary accepts arbitrary key-value pairs for extensibility.
-        No specific keys are enforced by the backend.
+        Reserved for future use. No keys are currently read by the backend.
     """
 
-    access_grants: list[AccessGrantModel] = Field(default_factory=list)
-    """List of access grants controlling who can read or write this calendar."""
+    meta: Optional[dict[str, Any]] = None
+    """Arbitrary calendar metadata.
+
+    Dict Fields:
+        Reserved for future use. No keys are currently read by the backend.
+    """
+
+    access_grants: list[Any] = Field(default_factory=list)
+    """List of access grants controlling sharing. Each grant is a dict.
+
+    Dict Fields:
+        - `target_type` (str, required): Grant target type, e.g. 'user' or 'group'
+        - `target_id` (str, required): ID of the user or group
+        - `permission` (str, required): 'read' or 'write'
+    """
 
     created_at: int
-    """Timestamp when the calendar was created (epoch nanoseconds)."""
+    """Timestamp (nanoseconds since epoch) of creation."""
 
     updated_at: int
-    """Timestamp when the calendar was last updated (epoch nanoseconds)."""
-
-
-class CalendarEventAttendeeModel(BaseModel):
-    """An attendee of a calendar event."""
+    """Timestamp (nanoseconds since epoch) of last update."""
 
     model_config = ConfigDict(from_attributes=True)
 
+
+class CalendarEventAttendeeModel(BaseModel):
+    """An attendee on a calendar event with RSVP status."""
+
     id: str
-    """Unique identifier for the attendee record."""
+    """Unique identifier (UUID)."""
 
     event_id: str
-    """ID of the event this attendee belongs to."""
+    """ID of the parent event."""
 
     user_id: str
-    """ID of the attending user."""
+    """ID of the attendee user."""
 
     status: str = "pending"
-    """RSVP status. Valid values: 'accepted', 'declined', 'tentative', 'pending'."""
+    """RSVP status: 'accepted', 'declined', 'tentative', or 'pending'."""
 
-    meta: Optional[dict] = None
-    """Metadata associated with the attendee.
+    meta: Optional[dict[str, Any]] = None
+    """Arbitrary attendee metadata.
 
     Dict Fields:
-        This dictionary accepts arbitrary key-value pairs for extensibility.
-        No specific keys are enforced by the backend.
+        Reserved for future use. No keys are currently read by the backend.
     """
 
     created_at: int
-    """Timestamp when the attendee record was created (epoch nanoseconds)."""
+    """Timestamp (nanoseconds since epoch) of creation."""
 
     updated_at: int
-    """Timestamp when the attendee record was last updated (epoch nanoseconds)."""
+    """Timestamp (nanoseconds since epoch) of last update."""
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CalendarEventModel(BaseModel):
-    """A calendar event.
+    """A calendar event with optional recurrence and attendees.
 
-    Events support recurring instances via RRULE strings. When querying events,
-    the backend expands recurring events into individual instances within the
-    requested date range.
+    Timestamps are nanoseconds since epoch. Recurring events use an RRULE
+    string (RFC 5545); the backend expands instances server-side.
     """
 
-    model_config = ConfigDict(from_attributes=True, extra="allow")
-
     id: str
-    """Unique identifier for the event."""
+    """Unique identifier (UUID), or `auto_{id}`/`run_{id}` for virtual events."""
 
     calendar_id: str
-    """ID of the calendar this event belongs to."""
+    """ID of the parent calendar, or `__scheduled_tasks__` for virtual events."""
 
     user_id: str
-    """ID of the user who created the event."""
+    """ID of the event creator."""
 
     title: str
-    """Title of the event."""
+    """Event title."""
 
     description: Optional[str] = None
-    """Description or notes for the event."""
+    """Event description or notes."""
 
     start_at: int
-    """Start time in epoch nanoseconds."""
+    """Start time as nanoseconds since epoch."""
 
     end_at: Optional[int] = None
-    """End time in epoch nanoseconds. None for open-ended events."""
+    """End time as nanoseconds since epoch. Null for point events."""
 
     all_day: bool = False
     """Whether this is an all-day event."""
 
     rrule: Optional[str] = None
-    """Recurrence rule in iCalendar RRULE format (e.g., 'FREQ=DAILY;COUNT=5').
-
-    When present, the backend expands this event into recurring instances.
-    """
+    """RRULE recurrence rule (RFC 5545), e.g. `FREQ=DAILY;DTSTART=20260101T090000Z`."""
 
     color: Optional[str] = None
-    """Hex color code for this event (overrides calendar color)."""
+    """CSS color override for this event, e.g. `#ef4444`."""
 
     location: Optional[str] = None
-    """Location of the event."""
+    """Event location string."""
 
-    data: Optional[dict] = None
-    """Custom data associated with the event.
+    data: Optional[dict[str, Any]] = None
+    """Arbitrary event data.
 
     Dict Fields:
-        This dictionary accepts arbitrary key-value pairs for extensibility.
-        No specific keys are enforced by the backend.
+        Reserved for future use. No keys are currently read by the backend.
     """
 
-    meta: Optional[dict] = None
-    """Metadata associated with the event.
+    meta: Optional[dict[str, Any]] = None
+    """Event metadata.
 
     Dict Fields:
-        - `alert_minutes` (int, optional): Minutes before the event to trigger an alert.
-            Negative values mean "no alert". If absent, a default lookahead is used.
-        - Additional keys may exist for extensibility.
+        - `alert_minutes` (int, optional): Minutes before event to send a reminder.
+          0 = at time of event, -1 = no reminder. Defaults to 10 if absent.
+        - `automation_id` (str, optional): Set on virtual Scheduled Tasks events
+          to link back to the source automation.
+        - `run_id` (str, optional): Set on virtual past-run events to link to the
+          automation run record.
+        - `chat_id` (str, optional): Set on virtual past-run events for the
+          associated chat.
+        - `status` (str, optional): Set on virtual past-run events, 'success' or
+          'error'.
     """
 
     is_cancelled: bool = False
     """Whether the event has been cancelled."""
 
     attendees: list[CalendarEventAttendeeModel] = Field(default_factory=list)
-    """List of attendees for this event."""
+    """List of event attendees with RSVP status."""
 
     created_at: int
-    """Timestamp when the event was created (epoch nanoseconds)."""
+    """Timestamp (nanoseconds since epoch) of creation."""
 
     updated_at: int
-    """Timestamp when the event was last updated (epoch nanoseconds)."""
+    """Timestamp (nanoseconds since epoch) of last update."""
+
+    model_config = ConfigDict(from_attributes=True, extra="allow")
 
 
 class CalendarForm(BaseModel):
-    """Form data for creating a new calendar."""
+    """Form for creating a new calendar."""
 
     name: str
-    """Display name for the new calendar."""
+    """Display name of the calendar."""
 
     color: Optional[str] = None
-    """Hex color code (e.g., '#3b82f6')."""
+    """CSS color string, e.g. `#3b82f6`."""
 
-    data: Optional[dict] = None
-    """Custom data for the calendar.
+    data: Optional[dict[str, Any]] = None
+    """Arbitrary calendar data.
 
     Dict Fields:
-        This dictionary accepts arbitrary key-value pairs for extensibility.
-        No specific keys are enforced by the backend.
+        Reserved for future use. No keys are currently read by the backend.
     """
 
-    meta: Optional[dict] = None
-    """Metadata for the calendar.
+    meta: Optional[dict[str, Any]] = None
+    """Arbitrary calendar metadata.
 
     Dict Fields:
-        This dictionary accepts arbitrary key-value pairs for extensibility.
-        No specific keys are enforced by the backend.
+        Reserved for future use. No keys are currently read by the backend.
     """
 
-    access_grants: Optional[list[dict]] = None
-    """Initial access grants for the calendar.
+    access_grants: Optional[list[dict[str, Any]]] = None
+    """Access grants for sharing the calendar. Each dict defines a grant.
 
     Dict Fields:
-        - `id` (str, optional): Unique identifier for the grant.
-        - `principal_type` (str, required): 'user' or 'group'.
-        - `principal_id` (str, required): User/group ID, or '*' for public access.
-        - `permission` (str, required): 'read' or 'write'.
+        - `target_type` (str, required): Grant target type, e.g. 'user' or 'group'
+        - `target_id` (str, required): ID of the user or group
+        - `permission` (str, required): 'read' or 'write'
     """
 
 
 class CalendarUpdateForm(BaseModel):
-    """Form data for updating an existing calendar."""
+    """Form for updating an existing calendar. Only set fields are applied."""
 
     name: Optional[str] = None
-    """New display name for the calendar."""
+    """New display name."""
 
     color: Optional[str] = None
-    """New hex color code."""
+    """New CSS color string."""
 
-    data: Optional[dict] = None
-    """Custom data to merge into existing data.
+    data: Optional[dict[str, Any]] = None
+    """Merged into existing data. New keys overwrite old ones.
 
     Dict Fields:
-        This dictionary accepts arbitrary key-value pairs for extensibility.
-        When updating, the backend performs a shallow merge with existing data.
+        Reserved for future use. No keys are currently read by the backend.
     """
 
-    meta: Optional[dict] = None
-    """Metadata to merge into existing meta.
+    meta: Optional[dict[str, Any]] = None
+    """Merged into existing metadata. New keys overwrite old ones.
 
     Dict Fields:
-        This dictionary accepts arbitrary key-value pairs for extensibility.
-        When updating, the backend performs a shallow merge with existing meta.
+        Reserved for future use. No keys are currently read by the backend.
     """
 
-    access_grants: Optional[list[dict]] = None
-    """Replacement access grants for the calendar.
+    access_grants: Optional[list[dict[str, Any]]] = None
+    """Replaces all existing access grants. Each dict defines a grant.
 
     Dict Fields:
-        - `id` (str, optional): Unique identifier for the grant.
-        - `principal_type` (str, required): 'user' or 'group'.
-        - `principal_id` (str, required): User/group ID, or '*' for public access.
-        - `permission` (str, required): 'read' or 'write'.
+        - `target_type` (str, required): Grant target type, e.g. 'user' or 'group'
+        - `target_id` (str, required): ID of the user or group
+        - `permission` (str, required): 'read' or 'write'
     """
 
 
 class CalendarEventForm(BaseModel):
-    """Form data for creating a new calendar event."""
+    """Form for creating a new calendar event."""
 
     calendar_id: str
     """ID of the calendar to create the event in."""
 
     title: str
-    """Title of the event."""
+    """Event title."""
 
     description: Optional[str] = None
-    """Description or notes for the event."""
+    """Event description or notes."""
 
     start_at: int
-    """Start time in epoch nanoseconds."""
+    """Start time as nanoseconds since epoch."""
 
     end_at: Optional[int] = None
-    """End time in epoch nanoseconds."""
+    """End time as nanoseconds since epoch. Null for point events."""
 
     all_day: bool = False
     """Whether this is an all-day event."""
 
     rrule: Optional[str] = None
-    """Recurrence rule in iCalendar RRULE format."""
+    """RRULE recurrence rule (RFC 5545), e.g. `FREQ=WEEKLY;DTSTART=20260101T090000Z`."""
 
     color: Optional[str] = None
-    """Hex color code for this event."""
+    """CSS color override for this event."""
 
     location: Optional[str] = None
-    """Location of the event."""
+    """Event location string."""
 
-    data: Optional[dict] = None
-    """Custom data for the event.
+    data: Optional[dict[str, Any]] = None
+    """Arbitrary event data.
 
     Dict Fields:
-        This dictionary accepts arbitrary key-value pairs for extensibility.
-        No specific keys are enforced by the backend.
+        Reserved for future use. No keys are currently read by the backend.
     """
 
-    meta: Optional[dict] = None
-    """Metadata for the event.
+    meta: Optional[dict[str, Any]] = None
+    """Event metadata.
 
     Dict Fields:
-        - `alert_minutes` (int, optional): Minutes before the event to trigger an alert.
-        - Additional keys may exist for extensibility.
+        - `alert_minutes` (int, optional): Minutes before event to send a reminder.
+          0 = at time of event, -1 = no reminder. Defaults to 10 if absent.
     """
 
-    attendees: Optional[list[dict]] = None
-    """Initial attendees for the event.
+    attendees: Optional[list[dict[str, Any]]] = None
+    """Attendees to add to the event. Each dict defines an attendee.
 
     Dict Fields:
-        - `user_id` (str, required): ID of the user to invite.
-        - `status` (str, optional): Initial RSVP status ('pending', 'accepted', 'declined', 'tentative').
-        - `meta` (dict, optional): Attendee-specific metadata.
+        - `user_id` (str, required): ID of the attendee user
+        - `status` (str, optional): RSVP status, defaults to 'pending'
+        - `meta` (dict, optional): Arbitrary attendee metadata
     """
 
 
 class CalendarEventUpdateForm(BaseModel):
-    """Form data for updating an existing calendar event."""
+    """Form for updating an existing calendar event. Only set fields are applied."""
 
     calendar_id: Optional[str] = None
-    """New calendar ID to move the event to."""
+    """Move event to a different calendar."""
 
     title: Optional[str] = None
-    """New title for the event."""
+    """New event title."""
 
     description: Optional[str] = None
-    """New description for the event."""
+    """New event description."""
 
     start_at: Optional[int] = None
-    """New start time in epoch nanoseconds."""
+    """New start time as nanoseconds since epoch."""
 
     end_at: Optional[int] = None
-    """New end time in epoch nanoseconds."""
+    """New end time as nanoseconds since epoch."""
 
     all_day: Optional[bool] = None
     """Whether this is an all-day event."""
 
     rrule: Optional[str] = None
-    """New recurrence rule. Set to null to remove recurrence."""
+    """New RRULE recurrence rule, or null to remove recurrence."""
 
     color: Optional[str] = None
-    """New hex color code."""
+    """New CSS color override."""
 
     location: Optional[str] = None
-    """New location for the event."""
+    """New event location."""
 
-    data: Optional[dict] = None
-    """Custom data to merge into existing data.
+    data: Optional[dict[str, Any]] = None
+    """Merged into existing data. New keys overwrite old ones.
 
     Dict Fields:
-        This dictionary accepts arbitrary key-value pairs for extensibility.
-        When updating, the backend performs a shallow merge with existing data.
+        Reserved for future use. No keys are currently read by the backend.
     """
 
-    meta: Optional[dict] = None
-    """Metadata to merge into existing meta.
+    meta: Optional[dict[str, Any]] = None
+    """Merged into existing metadata. New keys overwrite old ones.
 
     Dict Fields:
-        - `alert_minutes` (int, optional): Minutes before the event to trigger an alert.
-        - Additional keys may exist for extensibility.
+        - `alert_minutes` (int, optional): Minutes before event to send a reminder.
+          0 = at time of event, -1 = no reminder. Defaults to 10 if absent.
     """
 
     is_cancelled: Optional[bool] = None
     """Set to True to cancel the event."""
 
-    attendees: Optional[list[dict]] = None
-    """Replacement list of attendees for the event.
+    attendees: Optional[list[dict[str, Any]]] = None
+    """Replaces all existing attendees. Each dict defines an attendee.
 
     Dict Fields:
-        - `user_id` (str, required): ID of the user to invite.
-        - `status` (str, optional): RSVP status ('pending', 'accepted', 'declined', 'tentative').
-        - `meta` (dict, optional): Attendee-specific metadata.
+        - `user_id` (str, required): ID of the attendee user
+        - `status` (str, optional): RSVP status, defaults to 'pending'
+        - `meta` (dict, optional): Arbitrary attendee metadata
     """
 
 
 class RSVPForm(BaseModel):
-    """Form data for updating RSVP status for an event."""
+    """Form for updating RSVP status on an event."""
 
     status: str
-    """RSVP status. Must be one of: 'accepted', 'declined', 'tentative', 'pending'."""
+    """RSVP status: 'accepted', 'declined', 'tentative', or 'pending'."""
 
 
 class CalendarEventUserResponse(CalendarEventModel):
-    """Calendar event with embedded user information.
+    """Calendar event enriched with the creator's user profile."""
 
-    Returned by event listing endpoints. Includes the creator's user details.
-    For recurring events, extra fields such as `instance_id` may be present
-    when the backend expands an RRULE into individual instances.
-    """
-
-    user: Optional[UserResponse] = None
-    """The user who created the event."""
+    user: Optional[Any] = None
+    """User profile of the event creator. Structure matches UserResponse."""
 
 
 class CalendarEventListResponse(BaseModel):
-    """Paginated response for event search results."""
+    """Paginated list of calendar events with enriched user data."""
 
-    items: list[CalendarEventUserResponse]
-    """List of events matching the search criteria."""
+    items: list[CalendarEventUserResponse] = []
+    """List of events in the current page."""
 
-    total: int
-    """Total number of matching events."""
+    total: int = 0
+    """Total number of events matching the query before pagination."""

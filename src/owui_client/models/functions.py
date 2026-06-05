@@ -197,7 +197,7 @@ class FunctionResponse(BaseModel):
 
     updated_at: int
     """
-    Timestamp of last update (epoch time).
+    Timestamp of the last update (epoch time).
     """
 
     created_at: int

@@ -58,11 +58,10 @@ class OAuthClientRegistrationForm(BaseModel):
     """Optional name for the client."""
 
     client_secret: Optional[str] = None
-    """Optional client secret for static OAuth credentials.
+    """Static OAuth client secret. When provided, skips dynamic registration and uses static credentials."""
 
-    If provided, the backend skips dynamic client registration and uses
-    the static credentials directly for OAuth 2.1 authentication.
-    """
+    oauth_server_url: Optional[str] = None
+    """Override for the OAuth server URL. Defaults to the url field if not provided."""
 
 
 class ToolServerConnection(BaseModel):
@@ -117,6 +116,15 @@ class ToolServerConnection(BaseModel):
 
     The config dictionary provides additional connection-specific settings that control
     behavior, security, and functionality of the tool server integration.
+    """
+
+    info: Optional[Dict[str, Any]] = None
+    """Server metadata and identification info.
+
+    Dict Fields:
+        - `id` (str, optional): Server identifier used for OAuth client management
+        - `oauth_server_url` (str, optional): Override URL for the OAuth authorization server
+        - Additional keys may be present depending on server type and configuration
     """
 
     model_config = ConfigDict(extra="allow")
@@ -302,46 +310,20 @@ class TerminalServerConnection(BaseModel):
     """
 
     server_type: Optional[str] = None
-    """Type of terminal server. Supported values: 'orchestrator', 'terminal'."""
+    """Type of terminal server. 'orchestrator' manages multiple terminals, 'terminal' is a plain terminal server."""
 
     policy_id: Optional[str] = None
-    """Identifier for the orchestrator policy associated with this connection."""
+    """ID of the policy assigned to this terminal server from an orchestrator."""
 
     policy: Optional[Dict[str, Any]] = None
-    """Cached policy data from the orchestrator.
+    """Cached policy data fetched from the orchestrator.
 
     Dict Fields:
-        This dictionary contains policy data fetched from an orchestrator terminal server.
-        The specific keys depend on the orchestrator implementation.
+        Policy structure is defined by the orchestrator terminal server's API.
+        See the orchestrator's /api/v1/policies endpoint for details.
     """
 
     model_config = ConfigDict(extra="allow")
-
-
-class TerminalServerPolicyForm(BaseModel):
-    """
-    Form for setting a policy on an orchestrator terminal server.
-    """
-
-    url: str
-    """Base URL of the orchestrator terminal server."""
-
-    key: Optional[str] = ""
-    """API Key or Token for authentication."""
-
-    auth_type: Optional[str] = "bearer"
-    """Authentication type. Common values: 'bearer', 'none'."""
-
-    policy_id: str
-    """Identifier for the policy to update."""
-
-    policy_data: Dict[str, Any]
-    """Policy data to send to the orchestrator.
-
-    Dict Fields:
-        This dictionary contains the policy configuration to be saved on the orchestrator.
-        The specific keys depend on the orchestrator implementation.
-    """
 
 
 class TerminalServersConfigForm(BaseModel):
@@ -351,3 +333,29 @@ class TerminalServersConfigForm(BaseModel):
 
     TERMINAL_SERVER_CONNECTIONS: List[TerminalServerConnection]
     """List of configured terminal server connections."""
+
+
+class TerminalServerPolicyForm(BaseModel):
+    """
+    Form for pushing a policy to an orchestrator terminal server.
+    """
+
+    url: str
+    """Base URL of the orchestrator terminal server."""
+
+    key: Optional[str] = ""
+    """API key or bearer token for authentication."""
+
+    auth_type: Optional[str] = "bearer"
+    """Authentication type. Common values: 'bearer', 'none'."""
+
+    policy_id: str
+    """ID of the policy to create or update."""
+
+    policy_data: Dict[str, Any]
+    """Policy data to send to the orchestrator.
+
+    Dict Fields:
+        Policy structure is defined by the orchestrator terminal server's API.
+        See the orchestrator's /api/v1/policies endpoint for details.
+    """
